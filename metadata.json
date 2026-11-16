@@ -1,0 +1,6 @@
+{
+  "name": "eRapor Sekolah v2",
+  "description": "Aplikasi pengolahan nilai PTS/PAS, terbilang bahasa Arab otomatis, rekapitulasi peringkat, rapor A4 1 lembar, dan sinkronisasi Google Sheets & Apps Script.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
