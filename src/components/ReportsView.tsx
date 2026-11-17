@@ -9,6 +9,14 @@ import type {
   ReportStudentRow,
 } from '../types/erapor.ts';
 import { isFemaleGender, toArabicDigits } from '../utils/arabic.ts';
+import {
+  APP_DEFAULT_TITLE,
+  buildReportFileName,
+  formatSemesterPart,
+  printWithDocumentTitle,
+  sanitizeFilePart,
+} from '../utils/exportFileName.ts';
+import { formatDateDDMMYYYY } from '../utils/studentUtils.ts';
 import { ConfirmDialog, Modal } from './Modal.tsx';
 
 interface ReportsViewProps {
@@ -174,7 +182,7 @@ export function ReportsView({
             <h2 className="text-2xl font-bold tracking-tight text-[#042f24]">
               Rapor Semester {semester}
             </h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-slate-800">
               Generate status rapor, pratinjau layout A4 1 lembar bahasa Arab dengan Terbilang, dan
               cetak langsung ke PDF.
             </p>
@@ -214,11 +222,11 @@ export function ReportsView({
       <div className="no-print rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-4 shadow-[0_4px_16px_rgba(6,78,59,0.05)]">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Kelas</label>
+            <label className="block text-xs font-semibold text-slate-900 mb-1">Kelas</label>
             <select
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
-              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
             >
               <option value="">Semua Kelas</option>
               {yearClasses.map((c) => (
@@ -229,13 +237,13 @@ export function ReportsView({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-slate-900 mb-1">
               Tahun Pelajaran
             </label>
             <select
               value={academicYear}
               onChange={(e) => setAcademicYear(e.target.value)}
-              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm font-mono-tabular focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm font-mono-tabular text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
             >
               {academicYears.map((y) => (
                 <option key={y.YEAR_ID} value={y.YEAR_NAME}>
@@ -274,7 +282,7 @@ export function ReportsView({
             <tbody className="divide-y divide-[#eee5d3]">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="py-10 text-center text-sm font-medium text-slate-800">
                     Memuat data siswa...
                   </td>
                 </tr>
@@ -296,17 +304,17 @@ export function ReportsView({
                         className="h-4 w-4 rounded border-slate-300 text-emerald-700"
                       />
                     </td>
-                    <td className="px-4 py-2.5 font-mono-tabular text-slate-500">{r.no}</td>
+                    <td className="px-4 py-2.5 font-mono-tabular font-semibold text-slate-800">{r.no}</td>
                     <td className="px-4 py-2.5">
-                      <div className="font-semibold text-slate-900 font-arabic text-base">
+                      <div className="font-semibold text-slate-950 font-arabic text-base">
                         {r.name}
                       </div>
-                      <div className="text-xs text-slate-500">
-                        Nilai terisi: <span className="font-mono-tabular">{r.scoreCount}</span> mapel
+                      <div className="text-xs font-medium text-slate-800">
+                        Nilai terisi: <span className="font-mono-tabular font-semibold">{r.scoreCount}</span> mapel
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 font-medium text-slate-700">{r.className}</td>
-                    <td className="px-4 py-2.5 font-mono-tabular text-xs text-slate-600">
+                    <td className="px-4 py-2.5 font-semibold text-slate-900">{r.className}</td>
+                    <td className="px-4 py-2.5 font-mono-tabular text-xs font-medium text-slate-900">
                       {r.nis || '-'} / {r.nisn || '-'}
                     </td>
                     <td className="px-4 py-2.5 text-center">
@@ -323,7 +331,7 @@ export function ReportsView({
                           <button
                             type="button"
                             onClick={() => setResetTargets([r.studentId])}
-                            className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
+                            className="rounded-md border border-red-200 p-1.5 text-red-700 hover:bg-red-50"
                             title="Reset Rapor"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -331,14 +339,14 @@ export function ReportsView({
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-xs font-semibold">
+                    <td className="px-4 py-2.5 text-xs font-bold">
                       <span
                         className={
                           r.status === 'READY'
-                            ? 'text-emerald-800'
+                            ? 'text-emerald-900'
                             : r.status === 'DRAFT'
-                              ? 'text-amber-700'
-                              : 'text-red-600'
+                              ? 'text-amber-900'
+                              : 'text-red-700'
                         }
                       >
                         {r.status}
@@ -348,7 +356,7 @@ export function ReportsView({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="py-10 text-center text-sm font-medium text-slate-800">
                     Tidak ada siswa aktif.
                   </td>
                 </tr>
@@ -410,7 +418,9 @@ function ArabicReportSheet({ preview }: { preview: ReportPreviewData }) {
     left: preview.subjects[i + half] || { no: '', name: '', score: '', terbilang: '' },
   }));
 
-  const reportDateArabic = toArabicDigits(preview.settings.REPORT_DATE || '');
+  const reportDateArabic = toArabicDigits(
+    formatDateDDMMYYYY(preview.settings.REPORT_DATE) || preview.settings.REPORT_DATE || ''
+  );
   const city = preview.settings.CITY || '............';
   const isFemale = isFemaleGender(preview.student.GENDER);
 
@@ -673,6 +683,19 @@ function ArabicReportPreviewModal({
   preview: ReportPreviewData;
   onClose: () => void;
 }) {
+  const reportFileName = buildReportFileName(
+    preview.student,
+    preview.semester,
+    preview.academicYear
+  );
+
+  useEffect(() => {
+    document.title = reportFileName;
+    return () => {
+      document.title = APP_DEFAULT_TITLE;
+    };
+  }, [reportFileName]);
+
   return (
     <Modal
       title={`Pratinjau Rapor A4 — ${preview.student.NAME}`}
@@ -689,7 +712,7 @@ function ArabicReportPreviewModal({
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => printWithDocumentTitle(reportFileName)}
             className="inline-flex items-center gap-2 rounded-lg bg-[#064e3b] px-4 py-2 text-sm font-semibold text-white hover:bg-[#043b2c]"
           >
             <Printer className="h-4 w-4 text-[#f3d16c]" />
@@ -710,6 +733,32 @@ function BatchArabicReportModal({
   previews: ReportPreviewData[];
   onClose: () => void;
 }) {
+  const batchFileName = useMemo(() => {
+    if (previews.length === 1) {
+      return buildReportFileName(
+        previews[0].student,
+        previews[0].semester,
+        previews[0].academicYear
+      );
+    }
+    const first = previews[0];
+    const base = [
+      sanitizeFilePart(first?.clazz?.CLASS_NAME || 'Semua Kelas'),
+      formatSemesterPart(first?.semester || '1'),
+      sanitizeFilePart(first?.academicYear || ''),
+    ]
+      .filter(Boolean)
+      .join('-');
+    return `${base || 'Rapor'} (${previews.length} Siswa)`;
+  }, [previews]);
+
+  useEffect(() => {
+    document.title = batchFileName;
+    return () => {
+      document.title = APP_DEFAULT_TITLE;
+    };
+  }, [batchFileName]);
+
   return (
     <Modal
       title={`Cetak Rapor Terpilih (${previews.length} Siswa)`}
@@ -726,7 +775,7 @@ function BatchArabicReportModal({
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => printWithDocumentTitle(batchFileName)}
             className="inline-flex items-center gap-2 rounded-lg bg-[#064e3b] px-4 py-2 text-sm font-semibold text-white hover:bg-[#043b2c]"
           >
             <Printer className="h-4 w-4 text-[#f3d16c]" />

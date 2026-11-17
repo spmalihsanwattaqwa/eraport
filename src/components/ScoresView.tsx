@@ -19,6 +19,7 @@ import {
   parseScoreWeights,
   subjectMatchesLevel,
 } from '../utils/arabic.ts';
+import { sanitizeImportedText, toAsciiDigits } from '../utils/importNormalizer.ts';
 
 interface ScoresViewProps {
   classes: ClassRecord[];
@@ -206,8 +207,10 @@ export function ScoresView({
       const item = { ...copy[targetIdx] };
 
       if (cols.length >= 2 && field === 'pts') {
-        const v1 = cols[0].trim() === '' ? NaN : Number(cols[0].replace(',', '.').trim());
-        const v2 = cols[1].trim() === '' ? NaN : Number(cols[1].replace(',', '.').trim());
+        const raw1 = toAsciiDigits(sanitizeImportedText(cols[0]));
+        const raw2 = toAsciiDigits(sanitizeImportedText(cols[1]));
+        const v1 = raw1 === '' ? NaN : Number(raw1.replace(',', '.'));
+        const v2 = raw2 === '' ? NaN : Number(raw2.replace(',', '.'));
         if (!Number.isNaN(v1)) {
           item.pts = Math.round((Math.max(0, Math.min(100, v1)) + Number.EPSILON) * 10) / 10;
         }
@@ -215,13 +218,16 @@ export function ScoresView({
           item.pas = Math.round((Math.max(0, Math.min(100, v2)) + Number.EPSILON) * 10) / 10;
         }
         if (!Number.isNaN(v1) || !Number.isNaN(v2)) count++;
-      } else if (cols[0].trim() !== '') {
-        const v = Number(cols[0].replace(',', '.').trim());
-        if (!Number.isNaN(v)) {
-          const clamped = Math.round((Math.max(0, Math.min(100, v)) + Number.EPSILON) * 10) / 10;
-          if (field === 'pts') item.pts = clamped;
-          else item.pas = clamped;
-          count++;
+      } else {
+        const raw0 = toAsciiDigits(sanitizeImportedText(cols[0]));
+        if (raw0 !== '') {
+          const v = Number(raw0.replace(',', '.'));
+          if (!Number.isNaN(v)) {
+            const clamped = Math.round((Math.max(0, Math.min(100, v)) + Number.EPSILON) * 10) / 10;
+            if (field === 'pts') item.pts = clamped;
+            else item.pas = clamped;
+            count++;
+          }
         }
       }
 
@@ -325,15 +331,16 @@ export function ScoresView({
       cols.forEach((rawCol, colOffset) => {
         const targetField = ATT_FIELDS[startColIdx + colOffset];
         if (!targetField) return;
-        const trimmed = rawCol.trim();
+        const trimmed = sanitizeImportedText(rawCol);
 
         if (
           targetField === 'sick' ||
           targetField === 'permission' ||
           targetField === 'absent'
         ) {
-          if (trimmed !== '') {
-            const n = Math.floor(Number(trimmed.replace(',', '.')));
+          const numStr = toAsciiDigits(trimmed);
+          if (numStr !== '') {
+            const n = Math.floor(Number(numStr.replace(',', '.')));
             if (Number.isFinite(n) && n >= 0) {
               item[targetField] = n;
               rowUpdated = true;
@@ -447,9 +454,9 @@ export function ScoresView({
       const item = { ...copy[targetIdx] };
 
       if (cols.length >= 2) {
-        const choice = normalizeTahfidzChoice(cols[0]);
+        const choice = normalizeTahfidzChoice(sanitizeImportedText(cols[0]));
         if (choice) item.tahfidzType = choice;
-        const scoreRaw = cols[1].trim();
+        const scoreRaw = toAsciiDigits(sanitizeImportedText(cols[1]));
         if (scoreRaw !== '') {
           const v = Number(scoreRaw.replace(',', '.'));
           if (Number.isFinite(v)) {
@@ -460,13 +467,16 @@ export function ScoresView({
         item.tahfidzScoreArab =
           item.tahfidzScore !== '' ? formatTahfidzKitabah(item.tahfidzType, item.tahfidzScore) : '';
         count++;
-      } else if (cols[0].trim() !== '') {
-        const v = Number(cols[0].replace(',', '.').trim());
-        if (Number.isFinite(v)) {
-          const clamped = Math.round((Math.max(0, Math.min(100, v)) + Number.EPSILON) * 10) / 10;
-          item.tahfidzScore = clamped;
-          item.tahfidzScoreArab = formatTahfidzKitabah(item.tahfidzType, clamped);
-          count++;
+      } else {
+        const cleanCol0 = toAsciiDigits(sanitizeImportedText(cols[0]));
+        if (cleanCol0 !== '') {
+          const v = Number(cleanCol0.replace(',', '.'));
+          if (Number.isFinite(v)) {
+            const clamped = Math.round((Math.max(0, Math.min(100, v)) + Number.EPSILON) * 10) / 10;
+            item.tahfidzScore = clamped;
+            item.tahfidzScoreArab = formatTahfidzKitabah(item.tahfidzType, clamped);
+            count++;
+          }
         }
       }
 
@@ -513,7 +523,7 @@ export function ScoresView({
                 ? 'Penilaian Tahfidz'
                 : 'Ketidakhadiran & Penilaian Syakhsiyah'}
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-800">
             {activeTab === 'scores'
               ? `Input nilai PTS (${ptsWeight}%) dan PAS (${pasWeight}%). Jika PTS kosong, PAS otomatis 100%. Mendukung Paste 1 atau 2 kolom langsung dari Excel.`
               : activeTab === 'tahfidz'
@@ -529,7 +539,7 @@ export function ScoresView({
             className={`rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'scores'
                 ? 'bg-[#064e3b] text-[#f3d16c] shadow-xs'
-                : 'text-slate-700 hover:text-emerald-950'
+                : 'text-slate-900 hover:text-emerald-950'
             }`}
           >
             Nilai PTS &amp; PAS
@@ -540,7 +550,7 @@ export function ScoresView({
             className={`rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'tahfidz'
                 ? 'bg-[#064e3b] text-[#f3d16c] shadow-xs'
-                : 'text-slate-700 hover:text-emerald-950'
+                : 'text-slate-900 hover:text-emerald-950'
             }`}
           >
             Tahfidz
@@ -551,7 +561,7 @@ export function ScoresView({
             className={`rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'attendance'
                 ? 'bg-[#064e3b] text-[#f3d16c] shadow-xs'
-                : 'text-slate-700 hover:text-emerald-950'
+                : 'text-slate-900 hover:text-emerald-950'
             }`}
           >
             Ketidakhadiran &amp; Syakhsiyah
@@ -567,11 +577,11 @@ export function ScoresView({
           } gap-3 items-end`}
         >
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Kelas</label>
+            <label className="block text-xs font-semibold text-slate-900 mb-1">Kelas</label>
             <select
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
-              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
             >
               <option value="">Pilih Kelas</option>
               {yearClasses.map((c) => (
@@ -584,13 +594,13 @@ export function ScoresView({
 
           {activeTab === 'scores' && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-slate-900 mb-1">
                 Mata Pelajaran
               </label>
               <select
                 value={subjectId}
                 onChange={(e) => setSubjectId(e.target.value)}
-                className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+                className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
               >
                 <option value="">Pilih Mapel</option>
                 {filteredSubjects.map((s) => (
@@ -603,18 +613,18 @@ export function ScoresView({
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Semester</label>
+            <label className="block text-xs font-semibold text-slate-900 mb-1">Semester</label>
             <select
               value={semester}
               onChange={(e) => setSemester(e.target.value)}
-              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
             >
               <option value="1">1</option>
               <option value="2">2</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-xs font-semibold text-slate-900 mb-1">
               Tahun Pelajaran
             </label>
             <select
@@ -625,7 +635,7 @@ export function ScoresView({
                 setAttRows(null);
                 setTahfidzRows(null);
               }}
-              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm font-mono-tabular focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+              className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm font-mono-tabular text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
             >
               {academicYears.map((y) => (
                 <option key={y.YEAR_ID} value={y.YEAR_NAME}>
@@ -671,9 +681,9 @@ export function ScoresView({
       {activeTab === 'scores' && rows !== null && (
         <div className="overflow-hidden rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 shadow-[0_6px_22px_rgba(6,78,59,0.06)]">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e6dcc6] px-5 py-3.5">
-            <div className="text-xs text-slate-600">
+            <div className="text-xs font-medium text-slate-800">
               Tip: Blok kolom PTS atau PTS+PAS di Excel, klik sel target, lalu tekan{' '}
-              <kbd className="rounded border border-[#d9ceb5] bg-white px-1.5 py-0.5 font-mono-tabular text-[11px]">
+              <kbd className="rounded border border-[#d9ceb5] bg-white px-1.5 py-0.5 font-mono-tabular text-[11px] text-slate-950">
                 Ctrl+V
               </kbd>
               . Gunakan Enter / Panah Atas-Bawah untuk pindah baris.
@@ -707,12 +717,12 @@ export function ScoresView({
                 {rows.length ? (
                   rows.map((r, idx) => (
                     <tr key={r.studentId} className="hover:bg-amber-50/45">
-                      <td className="px-4 py-2 font-mono-tabular text-slate-500">{r.no}</td>
+                      <td className="px-4 py-2 font-mono-tabular font-semibold text-slate-800">{r.no}</td>
                       <td className="px-4 py-2">
-                        <div className="font-semibold text-slate-900 font-arabic text-base">
+                        <div className="font-semibold text-slate-950 font-arabic text-base">
                           {r.name}
                         </div>
-                        <div className="text-[11px] font-mono-tabular text-slate-500">
+                        <div className="text-[11px] font-mono-tabular font-medium text-slate-800">
                           {r.nis || '-'} / {r.nisn || '-'}
                         </div>
                       </td>
@@ -740,7 +750,7 @@ export function ScoresView({
                           }}
                           onPaste={(e) => handlePaste(e, idx, 'pts')}
                           onKeyDown={(e) => handleKeyDown(e, idx, 'pts')}
-                          className="w-24 rounded-md border border-[#d9ceb5] bg-white px-2 py-1.5 text-center text-sm font-mono-tabular font-semibold focus:border-emerald-700 focus:bg-emerald-50/30 focus:outline-none disabled:bg-slate-100"
+                          className="w-24 rounded-md border border-[#d9ceb5] bg-white px-2 py-1.5 text-center text-sm font-mono-tabular font-semibold text-slate-950 focus:border-emerald-700 focus:bg-emerald-50/30 focus:outline-none disabled:bg-slate-100"
                         />
                       </td>
                       <td className="px-4 py-2 text-center">
@@ -767,20 +777,20 @@ export function ScoresView({
                           }}
                           onPaste={(e) => handlePaste(e, idx, 'pas')}
                           onKeyDown={(e) => handleKeyDown(e, idx, 'pas')}
-                          className="w-24 rounded-md border border-[#d9ceb5] bg-white px-2 py-1.5 text-center text-sm font-mono-tabular font-semibold focus:border-emerald-700 focus:bg-emerald-50/30 focus:outline-none disabled:bg-slate-100"
+                          className="w-24 rounded-md border border-[#d9ceb5] bg-white px-2 py-1.5 text-center text-sm font-mono-tabular font-semibold text-slate-950 focus:border-emerald-700 focus:bg-emerald-50/30 focus:outline-none disabled:bg-slate-100"
                         />
                       </td>
                       <td className="px-4 py-2 text-center font-mono-tabular font-bold text-[#042f24]">
                         {r.finalScore !== '' ? r.finalScore : '-'}
                       </td>
-                      <td className="px-4 py-2 text-right font-arabic text-base text-slate-800">
+                      <td className="px-4 py-2 text-right font-arabic text-base font-medium text-slate-950">
                         {r.finalScoreArab || '-'}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-sm text-slate-500">
+                    <td colSpan={6} className="py-10 text-center text-sm font-medium text-slate-800">
                       Tidak ada siswa aktif di kelas ini.
                     </td>
                   </tr>
@@ -795,9 +805,9 @@ export function ScoresView({
       {activeTab === 'attendance' && attRows !== null && (
         <div className="overflow-hidden rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 shadow-[0_6px_22px_rgba(6,78,59,0.06)]">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e6dcc6] px-5 py-3.5">
-            <div className="text-xs text-slate-600">
+            <div className="text-xs font-medium text-slate-800">
               Tip: Blok satu atau beberapa kolom di Excel (Ketidakhadiran, Syakhsiyah السلوك/النظافة/المواظبة, atau Catatan Guru), klik sel target, lalu tekan{' '}
-              <kbd className="rounded border border-[#d9ceb5] bg-white px-1.5 py-0.5 font-mono-tabular text-[11px]">
+              <kbd className="rounded border border-[#d9ceb5] bg-white px-1.5 py-0.5 font-mono-tabular text-[11px] text-slate-950">
                 Ctrl+V
               </kbd>
               .
@@ -818,7 +828,7 @@ export function ScoresView({
                         : prev
                     )
                   }
-                  className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-amber-50/50 whitespace-nowrap"
+                  className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-amber-50/50 whitespace-nowrap"
                 >
                   Lengkapi Kosong dg {defaultSyakhsiyah}
                 </button>
@@ -864,12 +874,12 @@ export function ScoresView({
                 {attRows.length ? (
                   attRows.map((r, idx) => (
                     <tr key={r.studentId} className="hover:bg-amber-50/45">
-                      <td className="px-3 py-2 font-mono-tabular text-slate-500">{r.no}</td>
+                      <td className="px-3 py-2 font-mono-tabular font-semibold text-slate-800">{r.no}</td>
                       <td className="px-3 py-2">
-                        <div className="font-semibold text-slate-900 font-arabic text-base">
+                        <div className="font-semibold text-slate-950 font-arabic text-base">
                           {r.name}
                         </div>
-                        <div className="text-[11px] font-mono-tabular text-slate-500">
+                        <div className="text-[11px] font-mono-tabular font-medium text-slate-800">
                           {r.nis || '-'}
                         </div>
                       </td>
@@ -993,12 +1003,12 @@ export function ScoresView({
       {activeTab === 'tahfidz' && tahfidzRows !== null && (
         <div className="overflow-hidden rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 shadow-[0_6px_22px_rgba(6,78,59,0.06)]">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e6dcc6] px-5 py-3.5">
-            <div className="text-xs text-slate-600">
-              Tip: Pilih kategori Tahfidz (<span className="font-semibold">Yanbua</span>,{' '}
-              <span className="font-semibold">Binnadzor</span>, atau{' '}
-              <span className="font-semibold">Bil Ghoib</span>) lalu isi nilai angka. Bisa paste
+            <div className="text-xs font-medium text-slate-800">
+              Tip: Pilih kategori Tahfidz (<span className="font-semibold text-slate-950">Yanbua</span>,{' '}
+              <span className="font-semibold text-slate-950">Binnadzor</span>, atau{' '}
+              <span className="font-semibold text-slate-950">Bil Ghoib</span>) lalu isi nilai angka. Bisa paste
               kolom nilai angka langsung dari Excel via{' '}
-              <kbd className="rounded border border-[#d9ceb5] bg-white px-1.5 py-0.5 font-mono-tabular text-[11px]">
+              <kbd className="rounded border border-[#d9ceb5] bg-white px-1.5 py-0.5 font-mono-tabular text-[11px] text-slate-950">
                 Ctrl+V
               </kbd>
               .
@@ -1073,12 +1083,12 @@ export function ScoresView({
                 {tahfidzRows.length ? (
                   tahfidzRows.map((r, idx) => (
                     <tr key={r.studentId} className="hover:bg-amber-50/45">
-                      <td className="px-4 py-2 font-mono-tabular text-slate-500">{r.no}</td>
+                      <td className="px-4 py-2 font-mono-tabular font-semibold text-slate-800">{r.no}</td>
                       <td className="px-4 py-2">
-                        <div className="font-semibold text-slate-900 font-arabic text-base">
+                        <div className="font-semibold text-slate-950 font-arabic text-base">
                           {r.name}
                         </div>
-                        <div className="text-[11px] font-mono-tabular text-slate-500">
+                        <div className="text-[11px] font-mono-tabular font-medium text-slate-800">
                           {r.nis || '-'} / {r.nisn || '-'}
                         </div>
                       </td>
@@ -1087,7 +1097,7 @@ export function ScoresView({
                           disabled={!canEdit}
                           value={r.tahfidzType}
                           onChange={(e) => updateTahfidzCell(idx, 'tahfidzType', e.target.value)}
-                          className="w-full rounded-md border border-[#d9ceb5] bg-white px-2.5 py-1.5 text-sm font-medium text-slate-800 focus:border-emerald-700 focus:bg-emerald-50/30 focus:outline-none disabled:bg-slate-100"
+                          className="w-full rounded-md border border-[#d9ceb5] bg-white px-2.5 py-1.5 text-sm font-medium text-slate-950 focus:border-emerald-700 focus:bg-emerald-50/30 focus:outline-none disabled:bg-slate-100"
                         >
                           <option value="">-- Pilih --</option>
                           {TAHFIDZ_OPTIONS.map((opt) => (
@@ -1123,17 +1133,17 @@ export function ScoresView({
                           }}
                           onPaste={(e) => handleTahfidzPaste(e, idx)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 'tahfidzScore')}
-                          className="w-24 rounded-md border border-[#d9ceb5] bg-white px-2 py-1.5 text-center text-sm font-mono-tabular font-semibold focus:border-emerald-700 focus:bg-emerald-50/30 focus:outline-none disabled:bg-slate-100"
+                          className="w-24 rounded-md border border-[#d9ceb5] bg-white px-2 py-1.5 text-center text-sm font-mono-tabular font-semibold text-slate-950 focus:border-emerald-700 focus:bg-emerald-50/30 focus:outline-none disabled:bg-slate-100"
                         />
                       </td>
-                      <td className="px-4 py-2 text-right font-arabic text-base text-slate-800">
+                      <td className="px-4 py-2 text-right font-arabic text-base font-medium text-slate-950">
                         {r.tahfidzScoreArab || '-'}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-sm text-slate-500">
+                    <td colSpan={5} className="py-10 text-center text-sm font-medium text-slate-800">
                       Tidak ada siswa aktif di kelas ini.
                     </td>
                   </tr>

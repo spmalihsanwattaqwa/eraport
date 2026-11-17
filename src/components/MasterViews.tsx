@@ -21,7 +21,7 @@ import {
 import { ConfirmDialog, Modal } from './Modal.tsx';
 
 const INPUT_CLASS =
-  'w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-900 transition-colors focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none';
+  'w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 transition-colors focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none';
 
 /* ===================== CLASSES VIEW ===================== */
 export function ClassesView({
@@ -129,7 +129,7 @@ export function ClassesView({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-5 shadow-[0_6px_20px_rgba(6,78,59,0.06)]">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-[#042f24]">Data Kelas</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-800">
             Kelola tingkat, nama rombel, wali kelas (معلم الفصل), dan tahun pelajaran.
           </p>
         </div>
@@ -137,7 +137,7 @@ export function ClassesView({
           <select
             value={yearFilter}
             onChange={(e) => setYearFilter(e.target.value)}
-            className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-xs font-mono-tabular font-semibold text-slate-800 focus:border-emerald-700 focus:outline-none"
+            className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-xs font-mono-tabular font-semibold text-slate-950 focus:border-emerald-700 focus:outline-none"
           >
             <option value="ALL">Semua Tahun ({classes.length})</option>
             {academicYears.map((y) => (
@@ -201,14 +201,14 @@ export function ClassesView({
               {filteredClasses.length ? (
                 filteredClasses.map((r, i) => (
                   <tr key={r.CLASS_ID} className="hover:bg-amber-50/45">
-                    <td className="px-4 py-2.5 font-mono-tabular text-slate-500">{i + 1}</td>
-                    <td className="px-4 py-2.5 font-medium text-slate-700">{r.LEVEL}</td>
-                    <td className="px-4 py-2.5 font-mono-tabular">{r.GRADE}</td>
-                    <td className="px-4 py-2.5 font-bold text-slate-900">{r.CLASS_NAME}</td>
-                    <td className="px-4 py-2.5 font-arabic text-base">{r.HOMEROOM_TEACHER}</td>
-                    <td className="px-4 py-2.5 font-mono-tabular">{r.ACADEMIC_YEAR}</td>
-                    <td className="px-4 py-2.5 text-xs font-semibold">
-                      <span className={r.ACTIVE === 'YA' ? 'text-emerald-700' : 'text-red-600'}>
+                    <td className="px-4 py-2.5 font-mono-tabular font-semibold text-slate-800">{i + 1}</td>
+                    <td className="px-4 py-2.5 font-semibold text-slate-900">{r.LEVEL}</td>
+                    <td className="px-4 py-2.5 font-mono-tabular font-medium text-slate-900">{r.GRADE}</td>
+                    <td className="px-4 py-2.5 font-bold text-slate-950">{r.CLASS_NAME}</td>
+                    <td className="px-4 py-2.5 font-arabic text-base font-medium text-slate-950">{r.HOMEROOM_TEACHER}</td>
+                    <td className="px-4 py-2.5 font-mono-tabular font-medium text-slate-900">{r.ACADEMIC_YEAR}</td>
+                    <td className="px-4 py-2.5 text-xs font-bold">
+                      <span className={r.ACTIVE === 'YA' ? 'text-emerald-900' : 'text-red-700'}>
                         {r.ACTIVE}
                       </span>
                     </td>
@@ -218,14 +218,14 @@ export function ClassesView({
                           <button
                             type="button"
                             onClick={() => setEditing({ ...r })}
-                            className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100"
+                            className="rounded-md border border-slate-300 p-1.5 text-slate-800 hover:bg-slate-100"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(r)}
-                            className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
+                            className="rounded-md border border-red-200 p-1.5 text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -236,7 +236,7 @@ export function ClassesView({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={canEdit ? 8 : 7} className="py-12 text-center text-sm text-slate-400">
+                  <td colSpan={canEdit ? 8 : 7} className="py-12 text-center text-sm font-medium text-slate-800">
                     Belum ada data kelas pada tahun ajaran ini.
                   </td>
                 </tr>
@@ -515,7 +515,7 @@ export function SubjectsView({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-5 shadow-[0_6px_20px_rgba(6,78,59,0.06)]">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-[#042f24]">Mata Pelajaran</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-800">
             Master mata pelajaran beserta nama aksara Arab (اسم المادة) dan urutan cetak rapor.
           </p>
         </div>
@@ -557,41 +557,41 @@ export function SubjectsView({
             <tbody className="divide-y divide-[#eee5d3]">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-sm text-slate-500">
+                  <td colSpan={9} className="py-10 text-center text-sm font-medium text-slate-800">
                     Memuat mata pelajaran...
                   </td>
                 </tr>
               ) : rows.length ? (
                 rows.map((r, i) => (
                   <tr key={r.SUBJECT_ID} className="hover:bg-amber-50/45">
-                    <td className="px-4 py-2.5 font-mono-tabular text-slate-500">{i + 1}</td>
-                    <td className="px-4 py-2.5 font-mono-tabular font-bold text-slate-900">
+                    <td className="px-4 py-2.5 font-mono-tabular font-semibold text-slate-800">{i + 1}</td>
+                    <td className="px-4 py-2.5 font-mono-tabular font-bold text-slate-950">
                       {r.CODE}
                     </td>
-                    <td className="px-4 py-2.5 text-slate-800">{r.SUBJECT_NAME}</td>
-                    <td className="px-4 py-2.5 text-right font-arabic text-base font-bold text-slate-900">
+                    <td className="px-4 py-2.5 font-medium text-slate-950">{r.SUBJECT_NAME}</td>
+                    <td className="px-4 py-2.5 text-right font-arabic text-base font-bold text-slate-950">
                       {r.SUBJECT_NAME_ARAB || '-'}
                     </td>
-                    <td className="px-4 py-2.5 text-slate-600">
+                    <td className="px-4 py-2.5 text-slate-900">
                       <div className="flex flex-wrap gap-1">
                         {parseSubjectLevels(r.LEVEL).map((lvl) => (
                           <span
                             key={lvl}
-                            className="inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-900 border border-emerald-200"
+                            className="inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-bold text-emerald-950 border border-emerald-300"
                           >
                             {lvl}
                           </span>
                         ))}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-center font-mono-tabular">{r.GROUP_NAME}</td>
-                    <td className="px-4 py-2.5 text-center font-mono-tabular">{r.DISPLAY_ORDER}</td>
-                    <td className="px-4 py-2.5 text-xs font-semibold">
+                    <td className="px-4 py-2.5 text-center font-mono-tabular font-semibold text-slate-900">{r.GROUP_NAME}</td>
+                    <td className="px-4 py-2.5 text-center font-mono-tabular font-semibold text-slate-900">{r.DISPLAY_ORDER}</td>
+                    <td className="px-4 py-2.5 text-xs font-bold">
                       <span
                         className={
                           String(r.ACTIVE).toUpperCase() === 'YA'
-                            ? 'text-emerald-700'
-                            : 'text-red-600'
+                            ? 'text-emerald-900'
+                            : 'text-red-700'
                         }
                       >
                         {r.ACTIVE}
@@ -603,14 +603,14 @@ export function SubjectsView({
                           <button
                             type="button"
                             onClick={() => setEditing({ ...r })}
-                            className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100"
+                            className="rounded-md border border-slate-300 p-1.5 text-slate-800 hover:bg-slate-100"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(r)}
-                            className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
+                            className="rounded-md border border-red-200 p-1.5 text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -621,7 +621,7 @@ export function SubjectsView({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-sm text-slate-400">
+                  <td colSpan={9} className="py-10 text-center text-sm font-medium text-slate-800">
                     Belum ada data mata pelajaran.
                   </td>
                 </tr>
@@ -913,7 +913,7 @@ export function ExtraAndNotesView({
           <h2 className="text-2xl font-bold tracking-tight text-[#042f24]">
             {mode === 'extracurricular' ? 'Ekstrakurikuler' : 'Catatan Guru & Kehadiran'}
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-800">
             {mode === 'extracurricular'
               ? 'Catat kegiatan, predikat, dan deskripsi ekstrakurikuler (disarankan aksara Arab).'
               : 'Catat sikap, ketidakhadiran (مرض، إذن، غائب), dan pesan wali kelas.'}
@@ -924,7 +924,7 @@ export function ExtraAndNotesView({
           <select
             value={yearFilter}
             onChange={(e) => setYearFilter(e.target.value)}
-            className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-xs font-mono-tabular font-semibold text-slate-800 focus:border-emerald-700 focus:outline-none"
+            className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-xs font-mono-tabular font-semibold text-slate-950 focus:border-emerald-700 focus:outline-none"
           >
             <option value="ALL">Semua Tahun</option>
             {academicYears.map((y) => (
@@ -1006,7 +1006,7 @@ export function ExtraAndNotesView({
             <tbody className="divide-y divide-[#eee5d3]">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-10 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="py-10 text-center text-sm font-medium text-slate-800">
                     Memuat data...
                   </td>
                 </tr>
@@ -1014,30 +1014,30 @@ export function ExtraAndNotesView({
                 filteredExtraRows.length ? (
                   filteredExtraRows.map((r, i) => (
                     <tr key={r.EX_ID} className="hover:bg-amber-50/45">
-                      <td className="px-4 py-2.5 font-mono-tabular text-slate-500">{i + 1}</td>
-                      <td className="px-4 py-2.5 font-semibold font-arabic text-base">
+                      <td className="px-4 py-2.5 font-mono-tabular font-semibold text-slate-800">{i + 1}</td>
+                      <td className="px-4 py-2.5 font-semibold font-arabic text-base text-slate-950">
                         {studentMap.get(r.STUDENT_ID) || r.STUDENT_ID}
                       </td>
-                      <td className="px-4 py-2.5 text-center font-mono-tabular text-xs text-slate-600">
+                      <td className="px-4 py-2.5 text-center font-mono-tabular text-xs font-medium text-slate-900">
                         {r.SEMESTER} · {r.ACADEMIC_YEAR}
                       </td>
-                      <td className="px-4 py-2.5 font-arabic text-base">{r.ACTIVITY}</td>
-                      <td className="px-4 py-2.5 font-arabic text-base">{r.PREDICATE}</td>
-                      <td className="px-4 py-2.5 font-arabic text-base">{r.DESCRIPTION}</td>
+                      <td className="px-4 py-2.5 font-arabic text-base text-slate-950">{r.ACTIVITY}</td>
+                      <td className="px-4 py-2.5 font-arabic text-base text-slate-950">{r.PREDICATE}</td>
+                      <td className="px-4 py-2.5 font-arabic text-base text-slate-900">{r.DESCRIPTION}</td>
                       {canEdit && (
                         <td className="px-4 py-2.5 text-center">
                           <div className="inline-flex gap-1.5">
                             <button
                               type="button"
                               onClick={() => setEditingExtra({ ...r })}
-                              className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100"
+                              className="rounded-md border border-slate-300 p-1.5 text-slate-800 hover:bg-slate-100"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button
                               type="button"
                               onClick={() => setDeleteId(r.EX_ID)}
-                              className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
+                              className="rounded-md border border-red-200 p-1.5 text-red-700 hover:bg-red-50"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -1048,7 +1048,7 @@ export function ExtraAndNotesView({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-sm text-slate-400">
+                    <td colSpan={7} className="py-10 text-center text-sm font-medium text-slate-800">
                       Belum ada data ekstrakurikuler pada tahun ini.
                     </td>
                   </tr>
@@ -1056,40 +1056,40 @@ export function ExtraAndNotesView({
               ) : filteredNoteRows.length ? (
                 filteredNoteRows.map((r, i) => (
                   <tr key={r.NOTE_ID} className="hover:bg-amber-50/45">
-                    <td className="px-4 py-2.5 font-mono-tabular text-slate-500">{i + 1}</td>
-                    <td className="px-4 py-2.5 font-semibold font-arabic text-base">
+                    <td className="px-4 py-2.5 font-mono-tabular font-semibold text-slate-800">{i + 1}</td>
+                    <td className="px-4 py-2.5 font-semibold font-arabic text-base text-slate-950">
                       {studentMap.get(r.STUDENT_ID) || r.STUDENT_ID}
                     </td>
-                    <td className="px-4 py-2.5 text-center font-mono-tabular text-xs text-slate-600">
+                    <td className="px-4 py-2.5 text-center font-mono-tabular text-xs font-medium text-slate-900">
                       {r.SEMESTER} · {r.ACADEMIC_YEAR}
                     </td>
-                    <td className="px-4 py-2.5 font-arabic text-base text-right">
+                    <td className="px-4 py-2.5 font-arabic text-base text-right text-slate-950">
                       {r.SYAKHSIYAH_SULUK || r.ATTITUDE || '-'}
                     </td>
-                    <td className="px-4 py-2.5 font-arabic text-base text-right">
+                    <td className="px-4 py-2.5 font-arabic text-base text-right text-slate-950">
                       {r.SYAKHSIYAH_NADHAFAH || '-'}
                     </td>
-                    <td className="px-4 py-2.5 font-arabic text-base text-right">
+                    <td className="px-4 py-2.5 font-arabic text-base text-right text-slate-950">
                       {r.SYAKHSIYAH_MUWAZHABAH || '-'}
                     </td>
-                    <td className="px-4 py-2.5 text-center font-mono-tabular">{r.SICK || 0}</td>
-                    <td className="px-4 py-2.5 text-center font-mono-tabular">{r.PERMISSION || 0}</td>
-                    <td className="px-4 py-2.5 text-center font-mono-tabular">{r.ABSENT || 0}</td>
-                    <td className="px-4 py-2.5 font-arabic text-base">{r.NOTE || '-'}</td>
+                    <td className="px-4 py-2.5 text-center font-mono-tabular font-semibold text-slate-900">{r.SICK || 0}</td>
+                    <td className="px-4 py-2.5 text-center font-mono-tabular font-semibold text-slate-900">{r.PERMISSION || 0}</td>
+                    <td className="px-4 py-2.5 text-center font-mono-tabular font-semibold text-slate-900">{r.ABSENT || 0}</td>
+                    <td className="px-4 py-2.5 font-arabic text-base text-slate-950">{r.NOTE || '-'}</td>
                     {canEdit && (
                       <td className="px-4 py-2.5 text-center">
                         <div className="inline-flex gap-1.5">
                           <button
                             type="button"
                             onClick={() => setEditingNote({ ...r })}
-                            className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100"
+                            className="rounded-md border border-slate-300 p-1.5 text-slate-800 hover:bg-slate-100"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteId(r.NOTE_ID)}
-                            className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
+                            className="rounded-md border border-red-200 p-1.5 text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1100,7 +1100,7 @@ export function ExtraAndNotesView({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={10} className="py-10 text-center text-sm text-slate-400">
+                  <td colSpan={10} className="py-10 text-center text-sm font-medium text-slate-800">
                     Belum ada catatan guru.
                   </td>
                 </tr>

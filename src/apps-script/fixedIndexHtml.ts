@@ -246,9 +246,14 @@ async function loadRecap(btn){
 function exportRecapExcel(){
   if(!state.lastRecap||!state.lastRecap.rows.length){toast('Tampilkan data rekapitulasi terlebih dahulu.','err');return}
   const r=state.lastRecap;
+  const clsEl=document.getElementById('recapClass');
+  const clsName=(clsEl&&clsEl.value)?(clsEl.options[clsEl.selectedIndex].text||'Kelas'):'Semua Kelas';
+  const semVal=(document.getElementById('recapSem')||{}).value||'1';
+  const yearVal=((document.getElementById('recapYear')||{}).value||'').replace(/[\\/]/g,'-');
+  const fname=[clsName,'Semester '+semVal,yearVal].filter(Boolean).join('-').replace(/[<>:"/\\|?*]/g,'-').trim()||'Rekapitulasi';
   const header=['No','NIS','Nama Murid',...r.subjects.map(s=>s.code||s.name),'Total','Rata-rata','Ranking','Kategori'];
   const aoa=[header,...r.rows.map(x=>[x.no,x.nis,x.name,...r.subjects.map(s=>x.values[s.id]??''),x.total,x.average,x.rank,x.category])];
-  const ws=XLSX.utils.aoa_to_sheet(aoa);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Rekapitulasi');XLSX.writeFile(wb,'Rekapitulasi_eRapor.xlsx');
+  const ws=XLSX.utils.aoa_to_sheet(aoa);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Rekapitulasi');XLSX.writeFile(wb,fname+'.xlsx');
 }
 
 async function renderSettings(){

@@ -5,6 +5,7 @@ import { api } from '../api/client.ts';
 import { FIXED_CODE_GS } from '../apps-script/fixedCodeGs.ts';
 import { FIXED_INDEX_HTML } from '../apps-script/fixedIndexHtml.ts';
 import type { SafeUser } from '../types/erapor.ts';
+import { parseCleanSheetRows, readCleanExcelWorkbook } from '../utils/excelReader.ts';
 
 interface AppsScriptSyncViewProps {
   user: SafeUser;
@@ -90,14 +91,14 @@ export function AppsScriptSyncView({
     setBusy(true);
     try {
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const wb = readCleanExcelWorkbook(buf);
       const payload: Record<string, Record<string, unknown>[]> = {};
       wb.SheetNames.forEach((name) => {
-        payload[name] = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[name]);
+        payload[name] = parseCleanSheetRows(wb.Sheets[name]);
       });
       await api.importDatabase(payload);
       await onRefresh();
-      onToast('Database berhasil disinkronkan dari file Workbook.');
+      onToast('Database berhasil disinkronkan dari file Workbook dengan format dan font standar aplikasi.');
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Gagal impor workbook', 'err');
     } finally {
@@ -119,7 +120,7 @@ export function AppsScriptSyncView({
               Kode Apps Script Diperbaiki &amp; Sinkronisasi Google Sheets
             </h2>
           )}
-          <p className={`mt-1 ${embedded ? 'text-xs' : 'text-sm'} text-slate-600`}>
+          <p className={`mt-1 ${embedded ? 'text-xs' : 'text-sm'} text-slate-800`}>
             Salin atau unduh versi perbaikan <b>Code.gs</b> &amp; <b>Index.html</b> untuk 100%
             Google Drive / Sheets / Docs Apps Script, serta ekspor-impor workbook 11-sheet.
           </p>
@@ -158,7 +159,7 @@ export function AppsScriptSyncView({
             className="rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-5 shadow-[0_4px_16px_rgba(6,78,59,0.05)]"
           >
             <h3 className="text-sm font-bold text-[#042f24]">{item.title}</h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-slate-600">{item.detail}</p>
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-800">{item.detail}</p>
           </div>
         ))}
       </div>

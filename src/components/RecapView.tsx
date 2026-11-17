@@ -2,6 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Download, Printer, Search, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api } from '../api/client.ts';
+import {
+  APP_DEFAULT_TITLE,
+  buildRecapFileName,
+  buildTranscriptFileName,
+  printWithDocumentTitle,
+} from '../utils/exportFileName.ts';
 import type {
   AcademicYearRecord,
   AppSettings,
@@ -41,6 +47,11 @@ export function RecapView({
   const [classId, setClassId] = useState(yearClasses[0]?.CLASS_ID || '');
   const [semester, setSemester] = useState(settings.ACTIVE_SEMESTER || '1');
   const [recap, setRecap] = useState<RecapResponse | null>(null);
+  const [recapMeta, setRecapMeta] = useState<{
+    className: string;
+    semester: string;
+    academicYear: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -97,11 +108,42 @@ export function RecapView({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const currentRecapClassName = recapMeta
+    ? recapMeta.className
+    : classId
+      ? classMap.get(classId) || 'Semua Kelas'
+      : 'Semua Kelas';
+  const currentRecapSemester = recapMeta ? recapMeta.semester : semester;
+  const currentRecapYear = recapMeta ? recapMeta.academicYear : academicYear;
+  const recapFileName = buildRecapFileName(
+    currentRecapClassName,
+    currentRecapSemester,
+    currentRecapYear
+  );
+
+  useEffect(() => {
+    if (activeTab === 'class' && recap?.rows.length) {
+      document.title = recapFileName;
+    } else if (activeTab === 'transcript' && transcript) {
+      document.title = buildTranscriptFileName(transcript.student);
+    } else {
+      document.title = APP_DEFAULT_TITLE;
+    }
+    return () => {
+      document.title = APP_DEFAULT_TITLE;
+    };
+  }, [activeTab, recap, recapFileName, transcript]);
+
   const loadRecap = async () => {
     setLoading(true);
     try {
       const data = await api.getRecap(classId, semester, academicYear);
       setRecap(data);
+      setRecapMeta({
+        className: classId ? classMap.get(classId) || 'Semua Kelas' : 'Semua Kelas',
+        semester,
+        academicYear,
+      });
       onToast('Data rekapitulasi berhasil dihitung dan disimpan.');
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Gagal memuat rekapitulasi', 'err');
@@ -132,7 +174,7 @@ export function RecapView({
       onToast('Tampilkan rekapitulasi terlebih dahulu.', 'err');
       return;
     }
-    const includePromo = String(semester) === '2';
+    const includePromo = String(currentRecapSemester) === '2';
     const header = [
       'No',
       'NIS',
@@ -169,7 +211,7 @@ export function RecapView({
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Rekapitulasi');
-    XLSX.writeFile(wb, `Rekapitulasi_Sem${semester}_${academicYear.replace('/', '-')}.xlsx`);
+    XLSX.writeFile(wb, `${recapFileName}.xlsx`);
   };
 
   const exportTranscriptExcel = () => {
@@ -239,7 +281,7 @@ export function RecapView({
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Transkrip');
-    XLSX.writeFile(wb, `Transkrip_${transcript.student.NAME.replace(/\s+/g, '_')}.xlsx`);
+    XLSX.writeFile(wb, `${buildTranscriptFileName(transcript.student)}.xlsx`);
   };
 
   return (
@@ -249,7 +291,7 @@ export function RecapView({
           <h2 className="text-2xl font-bold tracking-tight text-[#042f24]">
             {activeTab === 'class' ? 'Rekapitulasi Nilai' : 'Transkrip Nilai Siswa'}
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-800">
             {activeTab === 'class'
               ? 'Perhitungan otomatis Total, Rata-rata, Ranking, Kategori Arab, dan Keterangan Naik/Tidak Naik (Semester 2).'
               : 'Rekam jejak nilai seluruh mata pelajaran di semua semester dan semua tahun ajaran yang diikuti siswa.'}
@@ -283,15 +325,26 @@ export function RecapView({
           </div>
 
           {activeTab === 'class' ? (
-            <button
-              type="button"
-              onClick={exportExcel}
-              disabled={!recap?.rows.length}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#d9ceb5] bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-amber-50/50 disabled:opacity-50 whitespace-nowrap shrink-0"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Export Excel
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={exportExcel}
+                disabled={!recap?.rows.length}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#d9ceb5] bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-amber-50/50 disabled:opacity-50 whitespace-nowrap shrink-0"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export Excel
+              </button>
+              <button
+                type="button"
+                onClick={() => printWithDocumentTitle(recapFileName)}
+                disabled={!recap?.rows.length}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#064e3b] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#043b2c] disabled:opacity-50 whitespace-nowrap shrink-0"
+              >
+                <Printer className="h-3.5 w-3.5 text-[#f3d16c]" />
+                Cetak / PDF
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <button
@@ -305,7 +358,9 @@ export function RecapView({
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() =>
+                  transcript && printWithDocumentTitle(buildTranscriptFileName(transcript.student))
+                }
                 disabled={!transcript}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-[#064e3b] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#043b2c] disabled:opacity-50 whitespace-nowrap shrink-0"
               >
@@ -323,11 +378,11 @@ export function RecapView({
           <div className="no-print rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-4 shadow-[0_4px_16px_rgba(6,78,59,0.05)]">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Kelas</label>
+                <label className="block text-xs font-semibold text-slate-900 mb-1">Kelas</label>
                 <select
                   value={classId}
                   onChange={(e) => setClassId(e.target.value)}
-                  className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+                  className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
                 >
                   <option value="">Semua Kelas</option>
                   {yearClasses.map((c) => (
@@ -338,18 +393,18 @@ export function RecapView({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Semester</label>
+                <label className="block text-xs font-semibold text-slate-900 mb-1">Semester</label>
                 <select
                   value={semester}
                   onChange={(e) => setSemester(e.target.value)}
-                  className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+                  className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
                 >
                   <option value="1">1</option>
                   <option value="2">2</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-900 mb-1">
                   Tahun Pelajaran
                 </label>
                 <select
@@ -358,7 +413,7 @@ export function RecapView({
                     setAcademicYear(e.target.value);
                     setRecap(null);
                   }}
-                  className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm font-mono-tabular focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+                  className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm font-mono-tabular text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
                 >
                   {academicYears.map((y) => (
                     <option key={y.YEAR_ID} value={y.YEAR_NAME}>
@@ -383,38 +438,57 @@ export function RecapView({
           </div>
 
           {recap && (
-            <div className="overflow-hidden rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 shadow-[0_6px_22px_rgba(6,78,59,0.06)]">
+            <div className="print-only-sheet overflow-hidden rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 shadow-[0_6px_22px_rgba(6,78,59,0.06)] print:overflow-visible print:text-black">
+              <div className="hidden print:block border-b border-black pb-2 mb-3">
+                <div className="text-base font-bold text-black">
+                  Rekapitulasi Nilai — {settings.SCHOOL_NAME || 'eRapor v2'}
+                </div>
+                <div className="text-xs font-medium text-black mt-0.5">
+                  Kelas: {currentRecapClassName} · Semester {currentRecapSemester} · Tahun
+                  Pelajaran {currentRecapYear}
+                </div>
+              </div>
               {!recap.subjects.length || !recap.rows.length ? (
-                <div className="py-12 text-center text-sm text-slate-500">
+                <div className="py-12 text-center text-sm font-medium text-slate-800">
                   Belum ada mata pelajaran aktif atau data siswa untuk filter ini.
                 </div>
               ) : (
-                <div className="overflow-x-auto max-h-[68vh]">
-                  <table className="w-full text-left text-sm">
-                    <thead className="sticky top-0 z-20 bg-[#064e3b] text-xs font-semibold text-amber-50 border-b border-[#d4af37]/40">
+                <div className="overflow-x-auto max-h-[68vh] print:max-h-none print:overflow-visible">
+                  <table className="w-full text-left text-sm print:text-xs print:text-black">
+                    <thead className="sticky top-0 z-20 bg-[#064e3b] text-xs font-semibold text-amber-50 border-b border-[#d4af37]/40 print:static print:bg-slate-200 print:text-black">
                       <tr>
-                        <th className="sticky left-0 z-30 bg-[#064e3b] px-3 py-3 w-12">No.</th>
-                        <th className="sticky left-12 z-30 bg-[#064e3b] px-4 py-3 min-w-[180px] border-r border-white/15">
+                        <th className="sticky left-0 z-30 bg-[#064e3b] px-3 py-3 w-12 print:static print:bg-slate-200 print:text-black">
+                          No.
+                        </th>
+                        <th className="sticky left-12 z-30 bg-[#064e3b] px-4 py-3 min-w-[180px] border-r border-white/15 print:static print:bg-slate-200 print:text-black print:border-slate-500">
                           Nama Murid
                         </th>
-                        <th className="px-3 py-3 text-center min-w-[115px] bg-[#053f30] border-l border-white/10">
+                        <th className="px-3 py-3 text-center min-w-[115px] bg-[#053f30] border-l border-white/10 print:bg-slate-200 print:text-black print:border-slate-500">
                           Tahfidz
                         </th>
                         {recap.subjects.map((s) => (
                           <th
                             key={s.id}
                             title={s.name}
-                            className="px-3 py-3 text-center min-w-[76px] border-l border-white/10"
+                            className="px-3 py-3 text-center min-w-[76px] border-l border-white/10 print:border-slate-500"
                           >
                             {s.code || s.name}
                           </th>
                         ))}
-                        <th className="px-3 py-3 text-center bg-[#043427]">Total</th>
-                        <th className="px-3 py-3 text-center bg-[#043427]">Rata-rata</th>
-                        <th className="px-3 py-3 text-center bg-[#043427]">Ranking</th>
-                        <th className="px-3 py-3 text-center bg-[#043427]">Kategori</th>
-                        {String(semester) === '2' && (
-                          <th className="px-3 py-3 text-center bg-[#043427] border-l border-white/15 min-w-[160px]">
+                        <th className="px-3 py-3 text-center bg-[#043427] print:bg-slate-200 print:text-black">
+                          Total
+                        </th>
+                        <th className="px-3 py-3 text-center bg-[#043427] print:bg-slate-200 print:text-black">
+                          Rata-rata
+                        </th>
+                        <th className="px-3 py-3 text-center bg-[#043427] print:bg-slate-200 print:text-black">
+                          Ranking
+                        </th>
+                        <th className="px-3 py-3 text-center bg-[#043427] print:bg-slate-200 print:text-black">
+                          Kategori
+                        </th>
+                        {String(currentRecapSemester) === '2' && (
+                          <th className="px-3 py-3 text-center bg-[#043427] border-l border-white/15 min-w-[160px] print:bg-slate-200 print:text-black print:border-slate-500">
                             Keterangan Naik Kelas
                           </th>
                         )}
@@ -425,10 +499,10 @@ export function RecapView({
                         const isRetained = r.category?.trim() === 'راسب';
                         return (
                           <tr key={r.studentId} className="hover:bg-amber-50/45">
-                            <td className="sticky left-0 z-10 bg-[#fdfaf3] px-3 py-2.5 font-mono-tabular text-slate-500">
+                            <td className="sticky left-0 z-10 bg-[#fdfaf3] px-3 py-2.5 font-mono-tabular font-semibold text-slate-800 print:static print:bg-white print:text-black">
                               {r.no}
                             </td>
-                            <td className="sticky left-12 z-10 bg-[#fdfaf3] px-4 py-2.5 border-r border-[#e6dcc6]">
+                            <td className="sticky left-12 z-10 bg-[#fdfaf3] px-4 py-2.5 border-r border-[#e6dcc6] print:static print:bg-white print:text-black">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -437,22 +511,22 @@ export function RecapView({
                                   loadTranscript(r.studentId);
                                 }}
                                 title="Lihat Transkrip Nilai Siswa"
-                                className="text-left font-semibold text-slate-900 hover:text-emerald-800 font-arabic text-base"
+                                className="text-left font-semibold text-slate-950 hover:text-emerald-900 font-arabic text-base print:text-black"
                               >
                                 {r.name}
                               </button>
-                              <div className="text-[11px] font-mono-tabular text-slate-500">
+                              <div className="text-[11px] font-mono-tabular font-medium text-slate-800 print:text-black">
                                 {r.nis || '-'}
                               </div>
                             </td>
                             <td className="px-3 py-2.5 text-center bg-emerald-50/35 border-r border-[#e6dcc6]">
-                              <div className="font-mono-tabular font-semibold text-emerald-900">
+                              <div className="font-mono-tabular font-bold text-emerald-950">
                                 {r.tahfidzScore !== undefined && r.tahfidzScore !== ''
                                   ? r.tahfidzScore
                                   : '-'}
                               </div>
                               {r.tahfidzType && (
-                                <div className="text-[10px] font-medium text-slate-600">
+                                <div className="text-[10px] font-semibold text-slate-800">
                                   {r.tahfidzType}
                                 </div>
                               )}
@@ -462,34 +536,34 @@ export function RecapView({
                               return (
                                 <td
                                   key={s.id}
-                                  className="px-3 py-2.5 text-center font-mono-tabular text-slate-700"
+                                  className="px-3 py-2.5 text-center font-mono-tabular font-medium text-slate-900"
                                 >
                                   {v !== '' && v !== undefined ? v : '-'}
                                 </td>
                               );
                             })}
-                            <td className="px-3 py-2.5 text-center font-mono-tabular font-bold text-slate-900">
+                            <td className="px-3 py-2.5 text-center font-mono-tabular font-bold text-slate-950">
                               {r.total !== '' ? r.total : '-'}
                             </td>
-                            <td className="px-3 py-2.5 text-center font-mono-tabular font-bold text-slate-900">
+                            <td className="px-3 py-2.5 text-center font-mono-tabular font-bold text-slate-950">
                               {r.average !== '' ? r.average : '-'}
                             </td>
-                            <td className="px-3 py-2.5 text-center font-mono-tabular font-bold text-slate-900">
+                            <td className="px-3 py-2.5 text-center font-mono-tabular font-bold text-slate-950">
                               #{r.rank}
                             </td>
                             <td
                               className={`px-3 py-2.5 text-center font-arabic text-base font-bold ${
-                                isRetained ? 'text-red-700' : 'text-emerald-800'
+                                isRetained ? 'text-red-700' : 'text-emerald-900'
                               }`}
                             >
                               {r.category}
                             </td>
-                            {String(semester) === '2' && (
+                            {String(currentRecapSemester) === '2' && (
                               <td className="px-3 py-2.5 text-center">
                                 {r.promotionStatus && r.promotionStatus !== '-' ? (
                                   <div
                                     className={`text-xs font-bold ${
-                                      isRetained ? 'text-red-700' : 'text-emerald-800'
+                                      isRetained ? 'text-red-700' : 'text-emerald-900'
                                     }`}
                                   >
                                     <div>{r.promotionStatus}</div>
@@ -498,7 +572,7 @@ export function RecapView({
                                     </div>
                                   </div>
                                 ) : (
-                                  <span className="text-slate-400">-</span>
+                                  <span className="font-medium text-slate-700">-</span>
                                 )}
                               </td>
                             )}
@@ -520,7 +594,7 @@ export function RecapView({
           <div className="no-print rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-4 shadow-[0_4px_16px_rgba(6,78,59,0.05)]">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-900 mb-1">
                   Filter Kelas
                 </label>
                 <select
@@ -532,7 +606,7 @@ export function RecapView({
                     const first = students.find((s) => !nextCls || s.CLASS_ID === nextCls);
                     if (first) setSelectedStudentId(first.STUDENT_ID);
                   }}
-                  className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+                  className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
                 >
                   <option value="">Semua Kelas</option>
                   {classes.map((c) => (
@@ -543,11 +617,11 @@ export function RecapView({
                 </select>
               </div>
               <div ref={studentDropdownRef} className="relative">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-900 mb-1">
                   Pilih Siswa (Cari Nama / NIS)
                 </label>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
                   <input
                     type="text"
                     value={
@@ -566,7 +640,7 @@ export function RecapView({
                       setStudentDropdownOpen(true);
                     }}
                     placeholder="Ketik nama atau NIS siswa..."
-                    className="w-full rounded-lg border border-[#d9ceb5] bg-white pl-9 pr-14 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+                    className="w-full rounded-lg border border-[#d9ceb5] bg-white pl-9 pr-14 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
                   />
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                     {(studentSearchQuery || selectedStudentId) && (
@@ -577,7 +651,7 @@ export function RecapView({
                           setSelectedStudentId('');
                           setStudentDropdownOpen(true);
                         }}
-                        className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        className="rounded p-0.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                         title="Bersihkan pilihan"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -586,7 +660,7 @@ export function RecapView({
                     <button
                       type="button"
                       onClick={() => setStudentDropdownOpen((prev) => !prev)}
-                      className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      className="rounded p-0.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       aria-label="Toggle daftar siswa"
                     >
                       <ChevronDown className="h-4 w-4" />
@@ -612,19 +686,19 @@ export function RecapView({
                             }}
                             className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-amber-50 ${
                               isSelected
-                                ? 'bg-emerald-50 font-semibold text-emerald-900'
-                                : 'text-slate-800'
+                                ? 'bg-emerald-50 font-semibold text-emerald-950'
+                                : 'text-slate-900'
                             }`}
                           >
                             <span className="font-arabic text-base truncate">{s.NAME}</span>
-                            <span className="ml-2 shrink-0 font-mono-tabular text-xs text-slate-500">
+                            <span className="ml-2 shrink-0 font-mono-tabular text-xs font-medium text-slate-800">
                               {s.NIS || '-'} · {clsName}
                             </span>
                           </button>
                         );
                       })
                     ) : (
-                      <div className="px-3 py-4 text-center text-xs text-slate-500">
+                      <div className="px-3 py-4 text-center text-xs font-medium text-slate-800">
                         Siswa tidak ditemukan.
                       </div>
                     )}
@@ -648,42 +722,42 @@ export function RecapView({
               {/* Transcript Header */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#e6dcc6] pb-4 print:border-black">
                 <div>
-                  <div className="text-xs font-semibold text-emerald-800 print:text-black">
+                  <div className="text-xs font-bold text-emerald-900 print:text-black">
                     Transkrip Nilai Lintas Semester &amp; Tahun Ajaran
                   </div>
-                  <h3 className="mt-1 text-2xl font-bold text-slate-900 font-arabic print:text-black">
+                  <h3 className="mt-1 text-2xl font-bold text-slate-950 font-arabic print:text-black">
                     {transcript.student.NAME}
                   </h3>
-                  <div className="mt-1 text-xs text-slate-600 font-mono-tabular print:text-black">
+                  <div className="mt-1 text-xs font-medium text-slate-800 font-mono-tabular print:text-black">
                     NIS / NISN: {transcript.student.NIS || '-'} / {transcript.student.NISN || '-'} ·
-                    Kelas Saat Ini: <span className="font-semibold">{transcript.className}</span>
+                    Kelas Saat Ini: <span className="font-bold text-slate-950">{transcript.className}</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2 print:border-black">
-                    <div className="text-[11px] font-medium text-slate-500 print:text-black">
+                    <div className="text-[11px] font-semibold text-slate-800 print:text-black">
                       Semester Diikuti
                     </div>
-                    <div className="text-lg font-bold font-mono-tabular text-slate-900 print:text-black">
+                    <div className="text-lg font-bold font-mono-tabular text-slate-950 print:text-black">
                       {transcript.overall.termCount}
                     </div>
                   </div>
                   <div className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2 print:border-black">
-                    <div className="text-[11px] font-medium text-slate-500 print:text-black">
+                    <div className="text-[11px] font-semibold text-slate-800 print:text-black">
                       Rata-rata Kumulatif
                     </div>
-                    <div className="text-lg font-bold font-mono-tabular text-emerald-800 print:text-black">
+                    <div className="text-lg font-bold font-mono-tabular text-emerald-900 print:text-black">
                       {transcript.overall.cumulativeAverage !== ''
                         ? transcript.overall.cumulativeAverage
                         : '-'}
                     </div>
                   </div>
                   <div className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2 print:border-black">
-                    <div className="text-[11px] font-medium text-slate-500 print:text-black">
+                    <div className="text-[11px] font-semibold text-slate-800 print:text-black">
                       Predikat Kumulatif
                     </div>
-                    <div className="text-lg font-bold font-arabic text-slate-900 print:text-black">
+                    <div className="text-lg font-bold font-arabic text-slate-950 print:text-black">
                       {transcript.overall.cumulativeCategory}
                     </div>
                   </div>
@@ -691,7 +765,7 @@ export function RecapView({
               </div>
 
               {!transcript.terms.length ? (
-                <div className="py-12 text-center text-sm text-slate-500">
+                <div className="py-12 text-center text-sm font-medium text-slate-800">
                   Siswa ini belum memiliki riwayat nilai di semester atau tahun ajaran mana pun.
                 </div>
               ) : (
@@ -723,12 +797,12 @@ export function RecapView({
                     </thead>
                     <tbody className="divide-y divide-[#eee5d3]">
                       <tr className="bg-emerald-50/55 print:bg-white">
-                        <td className="px-3 py-2 font-mono-tabular text-slate-500 border border-[#e6dcc6] print:border-slate-500 print:text-black">
+                        <td className="px-3 py-2 font-mono-tabular font-semibold text-slate-800 border border-[#e6dcc6] print:border-slate-500 print:text-black">
                           -
                         </td>
                         <td className="px-3 py-2 border border-[#e6dcc6] print:border-slate-500">
                           <div className="font-semibold text-emerald-950 print:text-black">Tahfidz</div>
-                          <div className="text-xs font-arabic text-slate-600 print:text-black">
+                          <div className="text-xs font-arabic font-medium text-slate-800 print:text-black">
                             تحفيظ القرآن
                           </div>
                         </td>
@@ -740,29 +814,29 @@ export function RecapView({
                               key={t.key}
                               className="px-3 py-2 text-center border border-[#e6dcc6] print:border-slate-500"
                             >
-                              <div className="font-mono-tabular font-bold text-emerald-900 print:text-black">
+                              <div className="font-mono-tabular font-bold text-emerald-950 print:text-black">
                                 {score !== '' && score !== undefined ? score : '-'}
                               </div>
                               {type && (
-                                <div className="text-[11px] font-medium text-slate-600 print:text-black">
+                                <div className="text-[11px] font-semibold text-slate-800 print:text-black">
                                   {type}
                                 </div>
                               )}
                             </td>
                           );
                         })}
-                        <td className="px-3 py-2 text-center font-mono-tabular text-slate-500 bg-emerald-50/60 border border-[#e6dcc6] print:bg-white print:border-slate-500 print:text-black">
+                        <td className="px-3 py-2 text-center font-mono-tabular font-semibold text-slate-800 bg-emerald-50/60 border border-[#e6dcc6] print:bg-white print:border-slate-500 print:text-black">
                           -
                         </td>
                       </tr>
                       {transcript.subjects.map((sub, idx) => (
                         <tr key={sub.id} className="hover:bg-amber-50/45">
-                          <td className="px-3 py-2 font-mono-tabular text-slate-500 border border-[#e6dcc6] print:border-slate-500 print:text-black">
+                          <td className="px-3 py-2 font-mono-tabular font-semibold text-slate-800 border border-[#e6dcc6] print:border-slate-500 print:text-black">
                             {idx + 1}
                           </td>
                           <td className="px-3 py-2 border border-[#e6dcc6] print:border-slate-500">
-                            <div className="font-medium text-slate-900 print:text-black">{sub.name}</div>
-                            <div className="text-xs font-arabic text-slate-500 print:text-black">
+                            <div className="font-semibold text-slate-950 print:text-black">{sub.name}</div>
+                            <div className="text-xs font-arabic font-medium text-slate-800 print:text-black">
                               {sub.nameArab}
                             </div>
                           </td>
@@ -771,13 +845,13 @@ export function RecapView({
                             return (
                               <td
                                 key={t.key}
-                                className="px-3 py-2 text-center font-mono-tabular font-medium text-slate-800 border border-[#e6dcc6] print:border-slate-500 print:text-black"
+                                className="px-3 py-2 text-center font-mono-tabular font-semibold text-slate-900 border border-[#e6dcc6] print:border-slate-500 print:text-black"
                               >
                                 {val !== '' && val !== undefined ? val : '-'}
                               </td>
                             );
                           })}
-                          <td className="px-3 py-2 text-center font-mono-tabular font-bold text-emerald-900 bg-emerald-50/60 border border-[#e6dcc6] print:bg-white print:border-slate-500 print:text-black">
+                          <td className="px-3 py-2 text-center font-mono-tabular font-bold text-emerald-950 bg-emerald-50/60 border border-[#e6dcc6] print:bg-white print:border-slate-500 print:text-black">
                             {sub.average !== '' ? sub.average : '-'}
                           </td>
                         </tr>

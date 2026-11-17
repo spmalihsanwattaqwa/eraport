@@ -133,31 +133,146 @@ export interface SimpleDateParts {
   day: number;
 }
 
+const MONTH_NAME_MAP: Record<string, number> = {
+  jan: 1,
+  januari: 1,
+  january: 1,
+  feb: 2,
+  februari: 2,
+  february: 2,
+  mar: 3,
+  maret: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  mei: 5,
+  may: 5,
+  jun: 6,
+  juni: 6,
+  june: 6,
+  jul: 7,
+  juli: 7,
+  july: 7,
+  agu: 8,
+  agt: 8,
+  agustus: 8,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  okt: 10,
+  oktober: 10,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  nop: 11,
+  november: 11,
+  des: 12,
+  desember: 12,
+  dec: 12,
+  december: 12,
+};
+
 export function parseStudentDate(val: unknown): SimpleDateParts | null {
-  const s = String(val ?? '').trim();
+  if (val === null || val === undefined || val === '') return null;
+
+  if (val instanceof Date && !Number.isNaN(val.getTime())) {
+    return {
+      year: val.getFullYear(),
+      month: val.getMonth() + 1,
+      day: val.getDate(),
+    };
+  }
+
+  if (typeof val === 'number' && Number.isFinite(val) && val > 1000 && val < 100000) {
+    const utcMs = Math.round((val - 25569) * 86400 * 1000);
+    const d = new Date(utcMs);
+    if (!Number.isNaN(d.getTime())) {
+      return {
+        year: d.getUTCFullYear(),
+        month: d.getUTCMonth() + 1,
+        day: d.getUTCDate(),
+      };
+    }
+  }
+
+  let s = String(val).trim();
   if (!s) return null;
+
+  if (/^\d{4,5}(?:\.\d+)?$/.test(s)) {
+    const num = Number(s);
+    if (Number.isFinite(num) && num > 1000 && num < 100000) {
+      const utcMs = Math.round((num - 25569) * 86400 * 1000);
+      const d = new Date(utcMs);
+      if (!Number.isNaN(d.getTime())) {
+        return {
+          year: d.getUTCFullYear(),
+          month: d.getUTCMonth() + 1,
+          day: d.getUTCDate(),
+        };
+      }
+    }
+  }
+
+  // Strip time portion from ISO or SQL datetime strings (e.g. 2026-11-17T02:54:00Z or 2026-11-17 10:00:00)
+  const dtMatch = s.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4})[T\s].*$/);
+  if (dtMatch) {
+    s = dtMatch[1];
+  }
 
   let year = 0;
   let month = 0;
   let day = 0;
 
-  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const iso = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
   if (iso) {
     year = Number(iso[1]);
     month = Number(iso[2]);
     day = Number(iso[3]);
   } else {
-    const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    const dmy = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
     if (dmy) {
-      day = Number(dmy[1]);
-      month = Number(dmy[2]);
+      const p1 = Number(dmy[1]);
+      const p2 = Number(dmy[2]);
       year = Number(dmy[3]);
-    } else if (/^\d{4}$/.test(s)) {
-      year = Number(s);
-      month = 1;
-      day = 1;
+      if (p2 > 12 && p1 <= 12) {
+        // US MM/DD/YYYY fallback when second part > 12
+        month = p1;
+        day = p2;
+      } else {
+        day = p1;
+        month = p2;
+      }
     } else {
-      return null;
+      const dmyShort = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2})$/);
+      if (dmyShort) {
+        const p1 = Number(dmyShort[1]);
+        const p2 = Number(dmyShort[2]);
+        const yy = Number(dmyShort[3]);
+        const currentYY = new Date().getFullYear() % 100;
+        year = yy <= currentYY + 5 ? 2000 + yy : 1900 + yy;
+        if (p2 > 12 && p1 <= 12) {
+          month = p1;
+          day = p2;
+        } else {
+          day = p1;
+          month = p2;
+        }
+      } else {
+        const named = s.match(/^(\d{1,2})[\s-]+([A-Za-z]+)[\s-]+(\d{4})$/);
+        if (named) {
+          day = Number(named[1]);
+          month = MONTH_NAME_MAP[named[2].toLowerCase()] || 0;
+          year = Number(named[3]);
+        } else if (/^\d{4}$/.test(s)) {
+          year = Number(s);
+          month = 1;
+          day = 1;
+        } else {
+          return null;
+        }
+      }
     }
   }
 
@@ -179,6 +294,26 @@ export function normalizeDateInput(val: unknown): string {
   const p = parseStudentDate(val);
   if (!p) return '';
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+
+export function formatDateDDMMYYYY(val: unknown): string {
+  const s = String(val ?? '').trim();
+  if (!s) return '';
+  if (/^\d{4}$/.test(s)) return s;
+  const p = parseStudentDate(val);
+  if (!p) return s;
+  return `${String(p.day).padStart(2, '0')}/${String(p.month).padStart(2, '0')}/${p.year}`;
+}
+
+export function formatDateTimeDDMMYYYY(val: unknown): string {
+  const s = String(val ?? '').trim();
+  if (!s) return '';
+  const datePart = formatDateDDMMYYYY(s);
+  const timeMatch = s.match(/[T\s](\d{1,2}:\d{2})(?::\d{2})?/);
+  if (timeMatch && datePart) {
+    return `${datePart} ${timeMatch[1].padStart(5, '0')}`;
+  }
+  return datePart;
 }
 
 export function validateStudentStatusDate(

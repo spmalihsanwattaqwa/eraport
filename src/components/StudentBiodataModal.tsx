@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Printer, User } from 'lucide-react';
 import type { AppSettings, StudentRecord } from '../types/erapor.ts';
 import { isFemaleGender } from '../utils/arabic.ts';
 import {
+  APP_DEFAULT_TITLE,
+  buildBiodataFileName,
+  printWithDocumentTitle,
+} from '../utils/exportFileName.ts';
+import {
   composeStudentAddress,
   computeMasaBelajar,
-  formatIndonesianDate,
+  formatDateDDMMYYYY,
 } from '../utils/studentUtils.ts';
 import { Modal } from './Modal.tsx';
 
@@ -27,7 +32,7 @@ export function StudentBiodataSheet({
     isFemale ? 'Perempuan' : student.GENDER === 'L' ? 'Laki-laki' : student.GENDER || '-';
   const birthPlaceDate = [
     student.BIRTH_PLACE || '',
-    student.BIRTH_DATE ? formatIndonesianDate(student.BIRTH_DATE) : '',
+    student.BIRTH_DATE ? formatDateDDMMYYYY(student.BIRTH_DATE) : '',
   ]
     .filter(Boolean)
     .join(', ');
@@ -124,7 +129,7 @@ export function StudentBiodataSheet({
               <td className={labelClass}>9. Tanggal Kedatangan</td>
               <td className={sepClass}>:</td>
               <td className={valClass}>
-                {student.KEDATANGAN ? formatIndonesianDate(student.KEDATANGAN) : '-'}
+                {student.KEDATANGAN ? formatDateDDMMYYYY(student.KEDATANGAN) : '-'}
               </td>
             </tr>
             <tr className={rowClass}>
@@ -229,6 +234,15 @@ export function StudentBiodataModal({
   settings,
   onClose,
 }: StudentBiodataModalProps) {
+  const biodataFileName = buildBiodataFileName(student);
+
+  useEffect(() => {
+    document.title = biodataFileName;
+    return () => {
+      document.title = APP_DEFAULT_TITLE;
+    };
+  }, [biodataFileName]);
+
   return (
     <Modal
       title={`PDF Biodata Siswa — ${student.NAME}`}
@@ -236,8 +250,8 @@ export function StudentBiodataModal({
       maxWidthClass="max-w-4xl"
       footer={
         <div className="flex w-full flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <span className="text-xs text-slate-500">
-            Pilih <span className="font-semibold text-slate-700">&ldquo;Save as PDF&rdquo;</span> pada
+          <span className="text-xs font-medium text-slate-800">
+            Pilih <span className="font-semibold text-slate-950">&ldquo;Save as PDF&rdquo;</span> pada
             dialog cetak untuk mengunduh file PDF (A4).
           </span>
           <div className="flex items-center justify-end gap-2">
@@ -250,7 +264,7 @@ export function StudentBiodataModal({
             </button>
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() => printWithDocumentTitle(biodataFileName)}
               className="inline-flex items-center gap-2 rounded-lg bg-[#064e3b] px-4 py-2 text-sm font-semibold text-white ring-1 ring-[#d4af37]/35 hover:bg-[#043b2c]"
             >
               <Printer className="h-4 w-4 text-[#f3d16c]" />

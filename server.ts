@@ -44,12 +44,24 @@ import {
 import {
   computeMasaBelajar,
   findParentsByKk,
+  formatDateDDMMYYYY,
   normalizeDateInput,
   parseNikInfo,
   todayIsoDate,
   validateStudentIdentifiers,
   validateStudentStatusDate,
 } from './src/utils/studentUtils.ts';
+import {
+  normalizeImportedDateDDMMYYYY,
+  normalizeImportedDateIso,
+  normalizeImportedGender,
+  normalizeImportedIdentifier,
+  normalizeImportedLatinTitle,
+  normalizeImportedStatus,
+  normalizeImportedTahfidzType,
+  normalizeImportedYesNo,
+  sanitizeImportedText,
+} from './src/utils/importNormalizer.ts';
 
 function lookupWilayahFromNik(nikRaw: unknown): {
   province: string;
@@ -1171,10 +1183,22 @@ async function startServer() {
       const enrollmentYear = String(record.ENROLLMENT_YEAR || '').trim();
       if (entity === 'students') {
         delete record.ENROLLMENT_YEAR;
-        record.NIS = String(record.NIS ?? '').trim();
-        record.NISN = String(record.NISN ?? '').trim();
-        record.NIK = String(record.NIK ?? '').trim();
-        record.KK_NUMBER = String(record.KK_NUMBER ?? '').trim();
+        record.NIS = normalizeImportedIdentifier(record.NIS);
+        record.NISN = normalizeImportedIdentifier(record.NISN);
+        record.NIK = normalizeImportedIdentifier(record.NIK);
+        record.KK_NUMBER = normalizeImportedIdentifier(record.KK_NUMBER);
+        record.NAME = sanitizeImportedText(record.NAME);
+        record.BIRTH_PLACE = normalizeImportedLatinTitle(record.BIRTH_PLACE);
+        record.BIRTH_DATE = normalizeImportedDateIso(record.BIRTH_DATE);
+        record.FATHER_NAME = sanitizeImportedText(record.FATHER_NAME);
+        record.MOTHER_NAME = sanitizeImportedText(record.MOTHER_NAME);
+        record.RT_RW = sanitizeImportedText(record.RT_RW);
+        record.VILLAGE = normalizeImportedLatinTitle(record.VILLAGE);
+        record.DISTRICT = normalizeImportedLatinTitle(record.DISTRICT);
+        record.REGENCY = normalizeImportedLatinTitle(record.REGENCY);
+        record.PROVINCE = normalizeImportedLatinTitle(record.PROVINCE);
+        record.PHONE = normalizeImportedIdentifier(record.PHONE);
+        record.ADDRESS = sanitizeImportedText(record.ADDRESS);
 
         const nikInfo = parseNikInfo(record.NIK);
         if (nikInfo) {
@@ -1392,43 +1416,23 @@ async function startServer() {
         }
         return '';
       };
-      const formatExcelDate = (val: unknown): string => {
-        if (val === undefined || val === null || val === '') return '';
-        if (typeof val === 'number' && Number.isFinite(val) && val > 1000 && val < 100000) {
-          const utcMs = Math.round((val - 25569) * 86400 * 1000);
-          const d = new Date(utcMs);
-          if (!Number.isNaN(d.getTime())) {
-            return d.toISOString().slice(0, 10);
-          }
-        }
-        const s = String(val).trim();
-        const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-        if (dmy) {
-          return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
-        }
-        return s;
-      };
-      const normalizeGender = (val: unknown): string => {
-        const g = String(val || 'L').trim().toUpperCase();
-        if (g.startsWith('P') || g === 'WANITA' || g === 'PEREMPUAN' || g === 'F') return 'P';
-        return 'L';
-      };
+      const formatExcelDate = (val: unknown): string => normalizeImportedDateIso(val);
 
       const pendingStudents: StudentRecord[] = [];
       const pendingEnrollments: { studentId: string; classId: string; year: string }[] = [];
 
       for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
         const r = rows[rowIdx] as Record<string, unknown>;
-        const name = String(getField(r, 'NAMA LENGKAP', 'NAMA_LENGKAP', 'NAMA', 'NAME')).trim();
+        const name = sanitizeImportedText(getField(r, 'NAMA LENGKAP', 'NAMA_LENGKAP', 'NAMA', 'NAME'));
         if (!name) continue;
-        const className = String(getField(r, 'NAMA_KELAS', 'KELAS', 'CLASS_NAME')).trim().toLowerCase();
+        const className = sanitizeImportedText(getField(r, 'NAMA_KELAS', 'KELAS', 'CLASS_NAME')).toLowerCase();
         const studentId = makeId('STD');
         const resolvedClassId = classMap.get(className) || fallbackClassId;
 
-        const nis = String(getField(r, 'NIS')).trim();
-        const nisn = String(getField(r, 'NISN')).trim();
-        const nik = String(getField(r, 'NIK')).trim();
-        const kkNumber = String(getField(r, 'NOMOR KK', 'NO KK', 'KK_NUMBER')).trim();
+        const nis = normalizeImportedIdentifier(getField(r, 'NIS'));
+        const nisn = normalizeImportedIdentifier(getField(r, 'NISN'));
+        const nik = normalizeImportedIdentifier(getField(r, 'NIK'));
+        const kkNumber = normalizeImportedIdentifier(getField(r, 'NOMOR KK', 'NO KK', 'KK_NUMBER'));
 
         const combinedPool = [...db.STUDENTS, ...pendingStudents];
         const dupErr = validateStudentIdentifiers({ NIS: nis, NISN: nisn, NIK: nik }, combinedPool);
@@ -1438,20 +1442,20 @@ async function startServer() {
         }
 
         const nikInfo = parseNikInfo(nik);
-        const rawGenderField = String(getField(r, 'JENIS KELAMIN', 'JK', 'GENDER')).trim();
-        const birthPlace = String(getField(r, 'TEMPAT LAHIR', 'TEMPAT_LAHIR', 'BIRTH_PLACE')).trim();
+        const rawGenderField = sanitizeImportedText(getField(r, 'JENIS KELAMIN', 'JK', 'GENDER'));
+        const birthPlace = normalizeImportedLatinTitle(getField(r, 'TEMPAT LAHIR', 'TEMPAT_LAHIR', 'BIRTH_PLACE'));
         let birthDate = formatExcelDate(getField(r, 'TANGGAL LAHIR', 'TANGGAL_LAHIR', 'BIRTH_DATE'));
         if (!birthDate && nikInfo) {
           birthDate = nikInfo.birthDate;
         }
         const gender = rawGenderField
-          ? normalizeGender(rawGenderField)
+          ? normalizeImportedGender(rawGenderField)
           : nikInfo
             ? nikInfo.gender
             : 'L';
 
-        let fatherName = String(getField(r, 'NAMA AYAH', 'NAMA_AYAH', 'AYAH', 'FATHER_NAME')).trim();
-        let motherName = String(getField(r, 'NAMA IBU', 'NAMA_IBU', 'IBU', 'MOTHER_NAME')).trim();
+        let fatherName = sanitizeImportedText(getField(r, 'NAMA AYAH', 'NAMA_AYAH', 'AYAH', 'FATHER_NAME'));
+        let motherName = sanitizeImportedText(getField(r, 'NAMA IBU', 'NAMA_IBU', 'IBU', 'MOTHER_NAME'));
         if (kkNumber && (!fatherName || !motherName)) {
           const kkParents = findParentsByKk(kkNumber, combinedPool);
           if (kkParents) {
@@ -1460,11 +1464,11 @@ async function startServer() {
           }
         }
 
-        const rtRw = String(getField(r, 'RT/RW', 'RT_RW', 'RTRW')).trim();
-        let village = String(getField(r, 'DESA/KEL', 'DESA', 'KELURAHAN', 'VILLAGE')).trim();
-        let district = String(getField(r, 'KECAMATAN', 'DISTRICT')).trim();
-        let regency = String(getField(r, 'KABUPATEN/KOTA', 'KABUPATEN', 'KOTA', 'REGENCY')).trim();
-        let province = String(getField(r, 'PROVINSI', 'PROVINCE')).trim();
+        const rtRw = sanitizeImportedText(getField(r, 'RT/RW', 'RT_RW', 'RTRW'));
+        let village = normalizeImportedLatinTitle(getField(r, 'DESA/KEL', 'DESA', 'KELURAHAN', 'VILLAGE'));
+        let district = normalizeImportedLatinTitle(getField(r, 'KECAMATAN', 'DISTRICT'));
+        let regency = normalizeImportedLatinTitle(getField(r, 'KABUPATEN/KOTA', 'KABUPATEN', 'KOTA', 'REGENCY'));
+        let province = normalizeImportedLatinTitle(getField(r, 'PROVINSI', 'PROVINCE'));
 
         const wilayah = lookupWilayahFromNik(nik);
         if (wilayah) {
@@ -1474,14 +1478,12 @@ async function startServer() {
           if (!village && wilayah.defaultVillage) village = wilayah.defaultVillage;
         }
 
-        const rawKedatangan = formatExcelDate(getField(r, 'KEDATANGAN'));
-        const kedatangan = normalizeDateInput(rawKedatangan) || String(rawKedatangan || '').trim();
-        const rawStatus = String(getField(r, 'STATUS') || 'AKTIF').trim().toUpperCase();
-        const status = ['AKTIF', 'LULUS', 'NONAKTIF'].includes(rawStatus) ? rawStatus : 'AKTIF';
+        const kedatangan = formatExcelDate(getField(r, 'KEDATANGAN'));
+        const status = normalizeImportedStatus(getField(r, 'STATUS') || 'AKTIF');
         const rawStatusDate = formatExcelDate(
           getField(r, 'TANGGAL NONAKTIF', 'TANGGAL LULUS', 'TGL NONAKTIF', 'TGL LULUS', 'STATUS_DATE')
         );
-        const statusDate = status === 'AKTIF' ? '' : normalizeDateInput(rawStatusDate) || String(rawStatusDate || '').trim();
+        const statusDate = status === 'AKTIF' ? '' : rawStatusDate;
 
         const statusDateErr = validateStudentStatusDate(status, statusDate, kedatangan);
         if (statusDateErr) {
@@ -1489,22 +1491,22 @@ async function startServer() {
           return;
         }
 
-        const rawMasaBelajar = String(getField(r, 'MASABELAJAR', 'MASA BELAJAR', 'MASA_BELAJAR')).trim();
+        const rawMasaBelajar = sanitizeImportedText(getField(r, 'MASABELAJAR', 'MASA BELAJAR', 'MASA_BELAJAR'));
         const masaBelajar = computeMasaBelajar(kedatangan, status, statusDate, rawMasaBelajar);
-        const explicitAddress = String(getField(r, 'ALAMAT', 'ADDRESS')).trim();
+        const explicitAddress = sanitizeImportedText(getField(r, 'ALAMAT', 'ADDRESS'));
         const composedAddress =
           explicitAddress ||
           [rtRw ? `RT/RW ${rtRw}` : '', village, district, regency, province].filter(Boolean).join(', ');
 
-        const waliName = String(
+        const waliName = sanitizeImportedText(
           getField(r, 'NAMA WALI', 'WALI', 'WALI_NAME', 'NAMA_ORTU_WALI') || ''
-        ).trim();
-        const waliRelation = String(
+        );
+        const waliRelation = normalizeImportedLatinTitle(
           getField(r, 'HUBUNGAN WALI', 'HUBUNGAN KELUARGA', 'HUBUNGAN', 'WALI_RELATION') || ''
-        ).trim();
-        const waliAddress = String(
+        );
+        const waliAddress = sanitizeImportedText(
           getField(r, 'ALAMAT WALI', 'WALI_ADDRESS') || ''
-        ).trim();
+        );
         const waliMode = waliName ? 'MANUAL' : '';
 
         pendingStudents.push({
@@ -1527,8 +1529,8 @@ async function startServer() {
           KEDATANGAN: kedatangan,
           MASA_BELAJAR: masaBelajar,
           CLASS_ID: resolvedClassId,
-          RELIGION: String(getField(r, 'AGAMA', 'RELIGION') || 'Islam').trim(),
-          PHONE: String(getField(r, 'TELEPON', 'NO HP', 'PHONE')).trim(),
+          RELIGION: normalizeImportedLatinTitle(getField(r, 'AGAMA', 'RELIGION') || 'Islam') || 'Islam',
+          PHONE: normalizeImportedIdentifier(getField(r, 'TELEPON', 'NO HP', 'PHONE')),
           ADDRESS: composedAddress,
           PARENT_NAME: waliName || fatherName || motherName,
           WALI_MODE: waliMode,
@@ -2273,7 +2275,12 @@ async function startServer() {
     for (const k of allowed) {
       if (k === 'PTS_WEIGHT' || k === 'PAS_WEIGHT') continue;
       if (Object.prototype.hasOwnProperty.call(body, k)) {
-        db.SETTINGS[k] = String(body[k] ?? '');
+        if (k === 'REPORT_DATE') {
+          const formatted = formatDateDDMMYYYY(body[k]);
+          db.SETTINGS[k] = formatted || sanitizeImportedText(body[k]);
+        } else {
+          db.SETTINGS[k] = String(body[k] ?? '');
+        }
       }
     }
     ensureMultiYearIntegrity(db);
@@ -2832,23 +2839,165 @@ async function startServer() {
     const payload = req.body || {};
     const db = loadDb();
 
+    const sanitizeRowStrings = (row: Record<string, unknown>): Record<string, unknown> => {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(row)) {
+        out[k] = typeof v === 'string' ? sanitizeImportedText(v) : v;
+      }
+      return out;
+    };
+
     if (Array.isArray(payload.SETTINGS)) {
       const nextSettings = { ...db.SETTINGS };
-      for (const row of payload.SETTINGS) {
-        if (row.KEY) nextSettings[String(row.KEY)] = String(row.VALUE ?? '');
+      for (const rawRow of payload.SETTINGS) {
+        const row = rawRow as Record<string, unknown>;
+        const key = sanitizeImportedText(row.KEY);
+        if (!key) continue;
+        if (key === 'REPORT_DATE') {
+          nextSettings[key] = normalizeImportedDateDDMMYYYY(row.VALUE) || sanitizeImportedText(row.VALUE);
+        } else {
+          nextSettings[key] = sanitizeImportedText(row.VALUE);
+        }
       }
       db.SETTINGS = nextSettings;
     }
-    if (Array.isArray(payload.ACADEMIC_YEARS)) db.ACADEMIC_YEARS = payload.ACADEMIC_YEARS;
-    if (Array.isArray(payload.CLASSES)) db.CLASSES = payload.CLASSES;
-    if (Array.isArray(payload.STUDENTS)) db.STUDENTS = payload.STUDENTS;
-    if (Array.isArray(payload.ENROLLMENTS)) db.ENROLLMENTS = payload.ENROLLMENTS;
-    if (Array.isArray(payload.SUBJECTS)) db.SUBJECTS = payload.SUBJECTS;
-    if (Array.isArray(payload.SCORES)) db.SCORES = payload.SCORES;
-    if (Array.isArray(payload.RECAP)) db.RECAP = payload.RECAP;
-    if (Array.isArray(payload.EXTRACURRICULAR)) db.EXTRACURRICULAR = payload.EXTRACURRICULAR;
-    if (Array.isArray(payload.TEACHER_NOTES)) db.TEACHER_NOTES = payload.TEACHER_NOTES;
-    if (Array.isArray(payload.REPORT_FILES)) db.REPORT_FILES = payload.REPORT_FILES;
+    if (Array.isArray(payload.ACADEMIC_YEARS)) {
+      db.ACADEMIC_YEARS = payload.ACADEMIC_YEARS.map((raw: Record<string, unknown>) => {
+        const r = sanitizeRowStrings(raw);
+        return {
+          ...(r as unknown as AcademicYearRecord),
+          YEAR_NAME: sanitizeImportedText(r.YEAR_NAME),
+          ACTIVE_SEMESTER: sanitizeImportedText(r.ACTIVE_SEMESTER || '1') || '1',
+          IS_ACTIVE: normalizeImportedYesNo(r.IS_ACTIVE, 'TIDAK'),
+          NOTES: sanitizeImportedText(r.NOTES),
+          UPDATED_AT: sanitizeImportedText(r.UPDATED_AT) || nowStr(),
+        };
+      });
+    }
+    if (Array.isArray(payload.CLASSES)) {
+      db.CLASSES = payload.CLASSES.map((raw: Record<string, unknown>) => {
+        const r = sanitizeRowStrings(raw);
+        return {
+          ...(r as unknown as ClassRecord),
+          LEVEL: sanitizeImportedText(r.LEVEL || 'WUSTHA').toUpperCase(),
+          GRADE: sanitizeImportedText(r.GRADE),
+          CLASS_NAME: sanitizeImportedText(r.CLASS_NAME),
+          HOMEROOM_TEACHER: sanitizeImportedText(r.HOMEROOM_TEACHER),
+          ACADEMIC_YEAR: sanitizeImportedText(r.ACADEMIC_YEAR),
+          ACTIVE: normalizeImportedYesNo(r.ACTIVE, 'YA'),
+          UPDATED_AT: sanitizeImportedText(r.UPDATED_AT) || nowStr(),
+        };
+      });
+    }
+    if (Array.isArray(payload.STUDENTS)) {
+      db.STUDENTS = payload.STUDENTS.map((raw: Record<string, unknown>) => {
+        const r = sanitizeRowStrings(raw);
+        const status = normalizeImportedStatus(r.STATUS || 'AKTIF');
+        const birthDate = normalizeImportedDateIso(r.BIRTH_DATE);
+        const kedatangan = normalizeImportedDateIso(r.KEDATANGAN);
+        const statusDate = status === 'AKTIF' ? '' : normalizeImportedDateIso(r.STATUS_DATE);
+        const rtRw = sanitizeImportedText(r.RT_RW);
+        const village = normalizeImportedLatinTitle(r.VILLAGE);
+        const district = normalizeImportedLatinTitle(r.DISTRICT);
+        const regency = normalizeImportedLatinTitle(r.REGENCY);
+        const province = normalizeImportedLatinTitle(r.PROVINCE);
+        const explicitAddress = sanitizeImportedText(r.ADDRESS);
+        const address =
+          explicitAddress ||
+          [rtRw ? `RT/RW ${rtRw}` : '', village, district, regency, province].filter(Boolean).join(', ');
+        return {
+          ...(r as unknown as StudentRecord),
+          NIS: normalizeImportedIdentifier(r.NIS),
+          NISN: normalizeImportedIdentifier(r.NISN),
+          NIK: normalizeImportedIdentifier(r.NIK),
+          KK_NUMBER: normalizeImportedIdentifier(r.KK_NUMBER),
+          NAME: sanitizeImportedText(r.NAME),
+          FATHER_NAME: sanitizeImportedText(r.FATHER_NAME),
+          MOTHER_NAME: sanitizeImportedText(r.MOTHER_NAME),
+          GENDER: normalizeImportedGender(r.GENDER),
+          BIRTH_PLACE: normalizeImportedLatinTitle(r.BIRTH_PLACE),
+          BIRTH_DATE: birthDate,
+          RELIGION: normalizeImportedLatinTitle(r.RELIGION || 'Islam') || 'Islam',
+          RT_RW: rtRw,
+          VILLAGE: village,
+          DISTRICT: district,
+          REGENCY: regency,
+          PROVINCE: province,
+          ADDRESS: address,
+          KEDATANGAN: kedatangan,
+          STATUS: status,
+          STATUS_DATE: statusDate,
+          MASA_BELAJAR: computeMasaBelajar(kedatangan, status, statusDate, r.MASA_BELAJAR),
+          WALI_NAME: sanitizeImportedText(r.WALI_NAME),
+          WALI_RELATION: normalizeImportedLatinTitle(r.WALI_RELATION),
+          WALI_ADDRESS: sanitizeImportedText(r.WALI_ADDRESS),
+          PARENT_NAME: sanitizeImportedText(r.PARENT_NAME || r.WALI_NAME || r.FATHER_NAME || r.MOTHER_NAME),
+          PHONE: normalizeImportedIdentifier(r.PHONE),
+          UPDATED_AT: sanitizeImportedText(r.UPDATED_AT) || nowStr(),
+        };
+      });
+    }
+    if (Array.isArray(payload.ENROLLMENTS)) {
+      db.ENROLLMENTS = payload.ENROLLMENTS.map((raw: Record<string, unknown>) => ({
+        ...(sanitizeRowStrings(raw) as unknown as StudentEnrollmentRecord),
+      }));
+    }
+    if (Array.isArray(payload.SUBJECTS)) {
+      db.SUBJECTS = payload.SUBJECTS.map((raw: Record<string, unknown>) => {
+        const r = sanitizeRowStrings(raw);
+        const levels = parseSubjectLevels(r.LEVEL);
+        return {
+          ...(r as unknown as SubjectRecord),
+          CODE: sanitizeImportedText(r.CODE).toUpperCase(),
+          SUBJECT_NAME: sanitizeImportedText(r.SUBJECT_NAME),
+          SUBJECT_NAME_ARAB: sanitizeImportedText(r.SUBJECT_NAME_ARAB),
+          LEVEL: levels.length ? levels.join(', ') : String(db.SETTINGS.SCHOOL_LEVEL || 'WUSTHA').toUpperCase(),
+          GROUP_NAME: sanitizeImportedText(r.GROUP_NAME || 'A').toUpperCase(),
+          ACTIVE: normalizeImportedYesNo(r.ACTIVE, 'YA'),
+          UPDATED_AT: sanitizeImportedText(r.UPDATED_AT) || nowStr(),
+        };
+      });
+    }
+    if (Array.isArray(payload.SCORES)) {
+      const { ptsWeight, pasWeight } = parseScoreWeights(db.SETTINGS);
+      db.SCORES = payload.SCORES.map((raw: Record<string, unknown>) => {
+        const r = sanitizeRowStrings(raw);
+        const calc = computeFinalScore(r.PTS, r.PAS, ptsWeight, pasWeight);
+        return {
+          ...(r as unknown as ScoreRecord),
+          PTS: calc.pts,
+          PAS: calc.pas,
+          FINAL_SCORE: calc.finalScore,
+          FINAL_SCORE_ARAB: calc.finalScore !== '' ? numberToArabicWords(calc.finalScore) : '',
+          UPDATED_AT: sanitizeImportedText(r.UPDATED_AT) || nowStr(),
+        };
+      });
+    }
+    if (Array.isArray(payload.RECAP)) {
+      db.RECAP = payload.RECAP.map((raw: Record<string, unknown>) => ({
+        ...(sanitizeRowStrings(raw) as unknown as RecapRecord),
+      }));
+    }
+    if (Array.isArray(payload.EXTRACURRICULAR)) {
+      db.EXTRACURRICULAR = payload.EXTRACURRICULAR.map((raw: Record<string, unknown>) => ({
+        ...(sanitizeRowStrings(raw) as unknown as ExtraRecord),
+      }));
+    }
+    if (Array.isArray(payload.TEACHER_NOTES)) {
+      db.TEACHER_NOTES = payload.TEACHER_NOTES.map((raw: Record<string, unknown>) => {
+        const r = sanitizeRowStrings(raw);
+        return {
+          ...(r as unknown as TeacherNoteRecord),
+          TAHFIDZ_TYPE: normalizeImportedTahfidzType(r.TAHFIDZ_TYPE),
+          UPDATED_AT: sanitizeImportedText(r.UPDATED_AT) || nowStr(),
+        };
+      });
+    }
+    if (Array.isArray(payload.REPORT_FILES)) {
+      db.REPORT_FILES = payload.REPORT_FILES.map((raw: Record<string, unknown>) => ({
+        ...(sanitizeRowStrings(raw) as unknown as ReportFileRecord),
+      }));
+    }
 
     ensureMultiYearIntegrity(db);
     logAction(db, req.user!, 'RESTORE_WORKBOOK', 'DATABASE', '', 'Database diimpor dari workbook');

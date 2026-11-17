@@ -217,7 +217,7 @@ export default function App() {
 
   if (!appState) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-sm text-slate-600 bg-[#f6f2e8]">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-sm font-medium text-slate-800 bg-[#f6f2e8]">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-200 border-t-emerald-800" />
         <div>Memuat eRapor v2...</div>
       </div>
@@ -428,12 +428,12 @@ export default function App() {
                   <h1 className="text-base font-bold tracking-tight text-[#053225] truncate">
                     {NAV_ITEMS.find((n) => n.id === page)?.label || 'Dashboard'}
                   </h1>
-                  <div className="hidden sm:flex items-center gap-2 text-xs text-slate-600">
-                    <span className="font-arabic font-semibold text-emerald-900 truncate max-w-[260px]">
+                  <div className="hidden sm:flex items-center gap-2 text-xs text-slate-800">
+                    <span className="font-arabic font-bold text-emerald-950 truncate max-w-[260px]">
                       {settings.SCHOOL_NAME}
                     </span>
-                    <span className="text-amber-600/70">·</span>
-                    <span className="font-mono-tabular whitespace-nowrap text-slate-700">
+                    <span className="text-amber-700">·</span>
+                    <span className="font-mono-tabular font-semibold whitespace-nowrap text-slate-900">
                       TA {settings.ACADEMIC_YEAR} · Sem {settings.ACTIVE_SEMESTER}
                     </span>
                   </div>
@@ -442,8 +442,8 @@ export default function App() {
 
               <div className="flex items-center gap-3 shrink-0">
                 {academicYears.length > 0 && (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-[#d9ceb5] bg-white/90 px-2.5 py-1">
-                    <span className="hidden sm:inline text-[11px] font-semibold text-slate-500">
+                  <div className="flex items-center gap-1.5 rounded-lg border border-[#d9ceb5] bg-white/95 px-2.5 py-1">
+                    <span className="hidden sm:inline text-[11px] font-semibold text-slate-800">
                       Tahun:
                     </span>
                     <select
@@ -465,7 +465,7 @@ export default function App() {
                 )}
                 <div className="hidden sm:block text-right">
                   <div className="text-xs font-bold text-[#053225]">{user.name}</div>
-                  <div className="text-[11px] text-emerald-800/80">{user.role}</div>
+                  <div className="text-[11px] font-semibold text-emerald-950">{user.role}</div>
                 </div>
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#064e3b] text-xs font-bold text-[#f3d16c] ring-1 ring-[#d4af37]/60 shadow-xs">
                   {(user.name || 'U').slice(0, 1).toUpperCase()}

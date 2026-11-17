@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BookOpen, CheckCircle2, FileText, GraduationCap, Plus, School } from 'lucide-react';
 import { api } from '../api/client.ts';
 import type { AppSettings, DashboardData, SafeUser } from '../types/erapor.ts';
+import { formatDateTimeDDMMYYYY } from '../utils/studentUtils.ts';
 
 interface DashboardViewProps {
   user: SafeUser;
@@ -50,14 +51,14 @@ export function DashboardView({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 rounded-xl border border-white/65 bg-white/60 backdrop-blur-md p-5 shadow-[0_8px_28px_rgba(6,78,59,0.08)]">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-[#042f24]">Dashboard Akademik</h2>
-          <p className="mt-1 text-sm text-slate-700">
+          <p className="mt-1 text-sm text-slate-900">
             <span className="font-arabic font-bold text-emerald-950">{settings.SCHOOL_NAME}</span>
-            <span className="mx-2 text-amber-600/70">·</span>
-            <span className="font-medium text-slate-800">
+            <span className="mx-2 text-amber-700">·</span>
+            <span className="font-semibold text-slate-900">
               Jenjang {settings.SCHOOL_LEVEL || 'WUSTHA'}
             </span>
-            <span className="mx-2 text-amber-600/70">·</span>
-            <span className="font-mono-tabular text-slate-800">
+            <span className="mx-2 text-amber-700">·</span>
+            <span className="font-mono-tabular font-semibold text-slate-900">
               Tahun Pelajaran {displayYear}
               {isArchive ? ' (Arsip)' : ''}
             </span>
@@ -99,49 +100,49 @@ export function DashboardView({
       ) : data ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-white/65 bg-white/58 backdrop-blur-md p-5 shadow-[0_8px_24px_rgba(6,78,59,0.08)] transition-colors hover:bg-white/70">
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-950/80">
+            <div className="rounded-xl border border-white/65 bg-white/70 backdrop-blur-md p-5 shadow-[0_8px_24px_rgba(6,78,59,0.08)] transition-colors hover:bg-white/80">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-950">
                 <span>Peserta Didik Aktif</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-900/10 text-emerald-900">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-900/10 text-emerald-950">
                   <GraduationCap className="h-4 w-4" />
                 </div>
               </div>
               <div className="mt-2.5 text-3xl font-bold font-mono-tabular text-[#042f24]">
                 {data.studentCount}
               </div>
-              <div className="mt-1 text-xs font-medium text-slate-700">Terdaftar aktif</div>
+              <div className="mt-1 text-xs font-semibold text-slate-800">Terdaftar aktif</div>
             </div>
 
-            <div className="rounded-xl border border-white/65 bg-white/58 backdrop-blur-md p-5 shadow-[0_8px_24px_rgba(6,78,59,0.08)] transition-colors hover:bg-white/70">
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-950/80">
+            <div className="rounded-xl border border-white/65 bg-white/70 backdrop-blur-md p-5 shadow-[0_8px_24px_rgba(6,78,59,0.08)] transition-colors hover:bg-white/80">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-950">
                 <span>Rombongan Belajar</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-900/10 text-emerald-900">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-900/10 text-emerald-950">
                   <School className="h-4 w-4" />
                 </div>
               </div>
               <div className="mt-2.5 text-3xl font-bold font-mono-tabular text-[#042f24]">
                 {data.classCount}
               </div>
-              <div className="mt-1 text-xs font-medium text-slate-700">Kelas aktif</div>
+              <div className="mt-1 text-xs font-semibold text-slate-800">Kelas aktif</div>
             </div>
 
-            <div className="rounded-xl border border-white/65 bg-white/58 backdrop-blur-md p-5 shadow-[0_8px_24px_rgba(6,78,59,0.08)] transition-colors hover:bg-white/70">
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-950/80">
+            <div className="rounded-xl border border-white/65 bg-white/70 backdrop-blur-md p-5 shadow-[0_8px_24px_rgba(6,78,59,0.08)] transition-colors hover:bg-white/80">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-950">
                 <span>Mata Pelajaran</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-900/10 text-emerald-900">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-900/10 text-emerald-950">
                   <BookOpen className="h-4 w-4" />
                 </div>
               </div>
               <div className="mt-2.5 text-3xl font-bold font-mono-tabular text-[#042f24]">
                 {data.subjectCount}
               </div>
-              <div className="mt-1 text-xs font-medium text-slate-700">Mapel aktif</div>
+              <div className="mt-1 text-xs font-semibold text-slate-800">Mapel aktif</div>
             </div>
 
-            <div className="rounded-xl border border-[#d4af37]/45 bg-white/62 backdrop-blur-md p-5 shadow-[0_8px_24px_rgba(6,78,59,0.08)] transition-colors hover:bg-white/75">
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-950/80">
+            <div className="rounded-xl border border-[#d4af37]/45 bg-white/72 backdrop-blur-md p-5 shadow-[0_8px_24px_rgba(6,78,59,0.08)] transition-colors hover:bg-white/82">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-950">
                 <span>Kesiapan Rapor</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/20 text-amber-800">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/20 text-amber-900">
                   <CheckCircle2 className="h-4 w-4" />
                 </div>
               </div>
@@ -175,7 +176,7 @@ export function DashboardView({
                     style={{ width: `${data.scoreCompletion}%` }}
                   />
                 </div>
-                <p className="mt-3 text-xs leading-relaxed text-slate-700">
+                <p className="mt-3 text-xs leading-relaxed text-slate-800">
                   Dihitung secara presisi dari jumlah pasangan siswa dan mata pelajaran aktif yang
                   telah memiliki Nilai Akhir di semester berjalan.
                 </p>
@@ -183,14 +184,14 @@ export function DashboardView({
             </div>
 
             {/* Rapor Terbaru Cream-White Card */}
-            <div className="rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/92 backdrop-blur-md shadow-[0_8px_24px_rgba(6,78,59,0.07)]">
+            <div className="rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 backdrop-blur-md shadow-[0_8px_24px_rgba(6,78,59,0.07)]">
               <div className="flex items-center justify-between border-b border-[#e6dcc6] px-5 py-4">
                 <h3 className="text-sm font-bold text-[#042f24]">Rapor Terbaru</h3>
                 {canGenerateReport && (
                   <button
                     type="button"
                     onClick={() => onNavigate(`report${settings.ACTIVE_SEMESTER || '1'}`)}
-                    className="text-xs font-semibold text-emerald-800 hover:text-amber-700 hover:underline whitespace-nowrap"
+                    className="text-xs font-bold text-emerald-900 hover:text-amber-800 hover:underline whitespace-nowrap"
                   >
                     Buka Halaman Rapor
                   </button>
@@ -201,18 +202,18 @@ export function DashboardView({
                   data.recent.map((r) => (
                     <div key={r.REPORT_ID} className="flex items-center justify-between py-3">
                       <div>
-                        <div className="text-sm font-semibold text-slate-900 font-arabic">
+                        <div className="text-sm font-semibold text-slate-950 font-arabic">
                           {r.STUDENT_NAME}
                         </div>
-                        <div className="text-xs font-mono-tabular text-slate-500">
-                          {r.GENERATED_AT}
+                        <div className="text-xs font-mono-tabular font-medium text-slate-800">
+                          {formatDateTimeDDMMYYYY(r.GENERATED_AT)}
                         </div>
                       </div>
-                      <span className="text-xs font-semibold text-emerald-800">Siap Cetak</span>
+                      <span className="text-xs font-bold text-emerald-900">Siap Cetak</span>
                     </div>
                   ))
                 ) : (
-                  <div className="py-10 text-center text-sm text-slate-500">
+                  <div className="py-10 text-center text-sm font-medium text-slate-800">
                     Belum ada rapor yang disiapkan pada semester ini.
                   </div>
                 )}

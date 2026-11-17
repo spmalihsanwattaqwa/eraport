@@ -11,7 +11,7 @@ interface SetupViewProps {
 }
 
 const INPUT_CLASS =
-  'w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm transition-colors focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none';
+  'w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 transition-colors focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none';
 
 export function SetupView({ warning, onComplete, onToast }: SetupViewProps) {
   const [schoolName, setSchoolName] = useState('');
@@ -93,7 +93,7 @@ export function SetupView({ warning, onComplete, onToast }: SetupViewProps) {
       <section className="lg:col-span-7 flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-xl rounded-xl border border-[#e6dcc6] bg-[#fdfaf3] p-6 sm:p-8 shadow-[0_10px_28px_rgba(4,47,36,0.08)]">
           <h2 className="text-2xl font-bold tracking-tight text-[#042f24]">Setup Awal Sekolah</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-800">
             Lengkapi identitas sekolah dan akun administrator untuk memulai database eRapor.
           </p>
 
@@ -261,9 +261,9 @@ export function SetupView({ warning, onComplete, onToast }: SetupViewProps) {
               />
             </div>
 
-            <div className="sm:col-span-2 border-t border-[#e6dcc6] pt-3 text-xs text-slate-600">
-              <div className="font-semibold text-slate-800 mb-0.5">Akun multi-role otomatis:</div>
-              <div className="font-mono-tabular text-slate-500">
+            <div className="sm:col-span-2 border-t border-[#e6dcc6] pt-3 text-xs text-slate-800">
+              <div className="font-semibold text-slate-950 mb-0.5">Akun multi-role otomatis:</div>
+              <div className="font-mono-tabular font-medium text-slate-800">
                 Wali Kelas: walikelas / wali123 · Guru: guru / guru123 · Kepala Sekolah: kepsek /
                 kepsek123
               </div>

@@ -4,9 +4,21 @@
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     background-color: #f6f2e8;
-    color: #0f172a;
+    color: #020617;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  input,
+  select,
+  textarea {
+    color: #0f172a;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #475569;
+    opacity: 1;
   }
 
   .font-mono-tabular {

@@ -23,13 +23,16 @@ import type {
   StudentRecord,
 } from '../types/erapor.ts';
 import { ConfirmDialog, Modal } from './Modal.tsx';
+import { DateInputDDMMYYYY } from './DateInputDDMMYYYY.tsx';
 import { StudentBiodataModal, StudentBiodataSheet } from './StudentBiodataModal.tsx';
+import { parseCleanSheetRows, readCleanExcelWorkbook } from '../utils/excelReader.ts';
 import {
   buildParentDirectory,
   composeStudentAddress,
   compressImageToDataUrl,
   computeMasaBelajar,
   findParentsByKk,
+  formatDateDDMMYYYY,
   normalizeDateInput,
   parseNikInfo,
   validateStudentIdentifiers,
@@ -289,7 +292,7 @@ export function StudentsView({
         '3171012005120001',
         '3171010101100001',
         'Jakarta',
-        '2012-05-20',
+        '20/05/2012',
         'L',
         '0012345678',
         'عبد الله',
@@ -302,7 +305,7 @@ export function StudentsView({
         'Cilandak',
         'Jakarta Selatan',
         'DKI Jakarta',
-        '2024-07-15',
+        '15/07/2024',
         computeMasaBelajar('2024-07-15', 'AKTIF'),
         yearClasses[0]?.CLASS_NAME || classes[0]?.CLASS_NAME || '1A',
       ],
@@ -349,7 +352,7 @@ export function StudentsView({
       s.NIK || '',
       s.KK_NUMBER || '',
       s.BIRTH_PLACE || '',
-      s.BIRTH_DATE || '',
+      formatDateDDMMYYYY(s.BIRTH_DATE) || '',
       s.GENDER || '',
       s.NISN || '',
       s.FATHER_NAME || '',
@@ -362,11 +365,11 @@ export function StudentsView({
       s.DISTRICT || '',
       s.REGENCY || '',
       s.PROVINCE || '',
-      s.KEDATANGAN || '',
+      formatDateDDMMYYYY(s.KEDATANGAN) || '',
       computeMasaBelajar(s.KEDATANGAN, s.STATUS, s.STATUS_DATE, s.MASA_BELAJAR) || '',
       className,
       s.STATUS || 'AKTIF',
-      s.STATUS_DATE || '',
+      formatDateDDMMYYYY(s.STATUS_DATE) || '',
     ]);
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
     const wb = XLSX.utils.book_new();
@@ -381,8 +384,8 @@ export function StudentsView({
     setBusy(true);
     try {
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]]);
+      const wb = readCleanExcelWorkbook(buf);
+      const rows = parseCleanSheetRows(wb.Sheets[wb.SheetNames[0]]);
       if (!rows.length) throw new Error('File Excel kosong atau format kolom tidak sesuai.');
       const targetYear = yearFilter && yearFilter !== 'ALL' ? yearFilter : selectedYear;
       const res = await api.importStudents(rows, targetYear);
@@ -393,6 +396,7 @@ export function StudentsView({
       onToast(err instanceof Error ? err.message : 'Gagal impor Excel.', 'err');
     } finally {
       setBusy(false);
+      e.target.value = '';
     }
   };
 
@@ -547,7 +551,7 @@ export function StudentsView({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-5 shadow-[0_6px_20px_rgba(6,78,59,0.06)]">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-[#042f24]">Data Siswa</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-800">
             Kelola identitas lengkap peserta didik, alamat domisili, kedatangan, masa belajar, dan penempatan rombel.
           </p>
         </div>
@@ -606,13 +610,13 @@ export function StudentsView({
       <div className="rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-4 shadow-[0_4px_16px_rgba(6,78,59,0.05)]">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari NIS, nama lengkap, NISN, NIK, nomor KK, ayah/ibu, desa, kecamatan..."
-              className="w-full rounded-lg border border-[#d9ceb5] bg-white pl-9 pr-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
+              className="w-full rounded-lg border border-[#d9ceb5] bg-white pl-9 pr-3 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
             />
           </div>
           <select
@@ -621,7 +625,7 @@ export function StudentsView({
               setYearFilter(e.target.value);
               setClassFilter('');
             }}
-            className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm font-mono-tabular focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none sm:w-48"
+            className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm font-mono-tabular text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none sm:w-48"
           >
             <option value="ALL">Semua Tahun / Alumni ({students.length})</option>
             {academicYears.map((y) => (
@@ -633,7 +637,7 @@ export function StudentsView({
           <select
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
-            className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none sm:w-52"
+            className="rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm text-slate-950 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none sm:w-52"
           >
             <option value="">Semua Kelas ({displayStudents.length})</option>
             {yearClasses.map((c) => (
@@ -680,10 +684,10 @@ export function StudentsView({
               {displayStudents.length ? (
                 displayStudents.map(({ student: s, className, promoResult, effectiveClassId }, idx) => (
                   <tr key={s.STUDENT_ID} className="hover:bg-amber-50/45">
-                    <td className="px-3 py-2.5 font-mono-tabular text-slate-500 whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-mono-tabular font-semibold text-slate-800 whitespace-nowrap">
                       {idx + 1}
                     </td>
-                    <td className="px-3 py-2.5 font-mono-tabular text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-mono-tabular font-medium text-slate-950 whitespace-nowrap">
                       {s.NIS || '-'}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
@@ -695,75 +699,75 @@ export function StudentsView({
                             className="h-9 w-7 shrink-0 rounded object-cover object-top border border-[#d9ceb5]"
                           />
                         ) : (
-                          <div className="flex h-9 w-7 shrink-0 items-center justify-center rounded border border-[#e6dcc6] bg-amber-50/60 text-slate-400">
+                          <div className="flex h-9 w-7 shrink-0 items-center justify-center rounded border border-[#e6dcc6] bg-amber-50/60 text-slate-600">
                             <User className="h-3.5 w-3.5" />
                           </div>
                         )}
-                        <span className="font-semibold text-slate-900 font-arabic text-sm">
+                        <span className="font-semibold text-slate-950 font-arabic text-sm">
                           {s.NAME}
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 font-mono-tabular text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-mono-tabular text-slate-900 whitespace-nowrap">
                       {s.NIK || '-'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono-tabular text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-mono-tabular text-slate-900 whitespace-nowrap">
                       {s.KK_NUMBER || '-'}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-slate-900 whitespace-nowrap">
                       {s.BIRTH_PLACE || '-'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono-tabular text-slate-700 whitespace-nowrap">
-                      {s.BIRTH_DATE || '-'}
+                    <td className="px-3 py-2.5 font-mono-tabular text-slate-950 whitespace-nowrap">
+                      {formatDateDDMMYYYY(s.BIRTH_DATE) || '-'}
                     </td>
-                    <td className="px-3 py-2.5 text-center font-mono-tabular whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-center font-mono-tabular font-semibold text-slate-900 whitespace-nowrap">
                       {s.GENDER || '-'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono-tabular text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-mono-tabular text-slate-900 whitespace-nowrap">
                       {s.NISN || '-'}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-800 font-arabic text-sm whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-slate-950 font-arabic text-sm whitespace-nowrap">
                       {s.FATHER_NAME || '-'}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-800 font-arabic text-sm whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-slate-950 font-arabic text-sm whitespace-nowrap">
                       {s.MOTHER_NAME || '-'}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <div className="font-semibold text-slate-800 font-arabic text-sm">
+                      <div className="font-semibold text-slate-950 font-arabic text-sm">
                         {s.WALI_NAME || s.PARENT_NAME || '-'}
                       </div>
                       {s.WALI_RELATION && (
-                        <div className="text-[10px] font-medium text-emerald-800">
+                        <div className="text-[10px] font-semibold text-emerald-900">
                           {s.WALI_RELATION}
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-700 max-w-[220px] truncate" title={s.WALI_ADDRESS || ''}>
+                    <td className="px-3 py-2.5 text-slate-900 max-w-[220px] truncate" title={s.WALI_ADDRESS || ''}>
                       {s.WALI_ADDRESS || '-'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono-tabular text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-mono-tabular text-slate-900 whitespace-nowrap">
                       {s.RT_RW || '-'}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-slate-900 whitespace-nowrap">
                       {s.VILLAGE || '-'}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-slate-900 whitespace-nowrap">
                       {s.DISTRICT || '-'}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-slate-900 whitespace-nowrap">
                       {s.REGENCY || '-'}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-slate-900 whitespace-nowrap">
                       {s.PROVINCE || '-'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono-tabular text-slate-700 whitespace-nowrap">
-                      {s.KEDATANGAN || '-'}
+                    <td className="px-3 py-2.5 font-mono-tabular text-slate-950 whitespace-nowrap">
+                      {formatDateDDMMYYYY(s.KEDATANGAN) || '-'}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-slate-900 whitespace-nowrap">
                       {computeMasaBelajar(s.KEDATANGAN, s.STATUS, s.STATUS_DATE, s.MASA_BELAJAR) ||
                         '-'}
                     </td>
-                    <td className="px-3 py-2.5 font-medium text-slate-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-semibold text-slate-950 whitespace-nowrap">
                       <div>{className}</div>
                       {promoResult && promoResult !== 'BELUM' && (
                         <span
@@ -771,29 +775,29 @@ export function StudentsView({
                             promoResult === 'TINGGAL'
                               ? 'text-red-700'
                               : promoResult === 'LULUS'
-                                ? 'text-amber-700'
-                                : 'text-emerald-700'
+                                ? 'text-amber-900'
+                                : 'text-emerald-900'
                           }`}
                         >
                           {promoResult}
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 font-semibold whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-bold whitespace-nowrap">
                       <span
                         className={
                           s.STATUS === 'AKTIF'
-                            ? 'text-emerald-700'
+                            ? 'text-emerald-900'
                             : s.STATUS === 'LULUS'
-                              ? 'text-amber-700'
-                              : 'text-red-600'
+                              ? 'text-amber-900'
+                              : 'text-red-700'
                         }
                       >
                         {s.STATUS}
                       </span>
                       {s.STATUS !== 'AKTIF' && s.STATUS_DATE && (
-                        <div className="text-[10px] font-mono-tabular font-normal text-slate-500 mt-0.5">
-                          {s.STATUS_DATE}
+                        <div className="text-[10px] font-mono-tabular font-semibold text-slate-800 mt-0.5">
+                          {formatDateDDMMYYYY(s.STATUS_DATE)}
                         </div>
                       )}
                     </td>
@@ -802,7 +806,7 @@ export function StudentsView({
                         <button
                           type="button"
                           onClick={() => setBiodataTarget({ student: s, className })}
-                          className="rounded-md border border-emerald-200 bg-emerald-50 p-1.5 text-emerald-800 hover:bg-emerald-100"
+                          className="rounded-md border border-emerald-300 bg-emerald-50 p-1.5 text-emerald-900 hover:bg-emerald-100"
                           title="PDF Biodata Siswa"
                         >
                           <FileText className="h-3.5 w-3.5" />
@@ -816,12 +820,13 @@ export function StudentsView({
                                 setParentDropdownOpen(false);
                                 setEditing({
                                   ...s,
+                                  BIRTH_DATE: normalizeDateInput(s.BIRTH_DATE) || s.BIRTH_DATE || '',
                                   KEDATANGAN: normalizeDateInput(s.KEDATANGAN) || s.KEDATANGAN || '',
                                   STATUS_DATE: normalizeDateInput(s.STATUS_DATE) || s.STATUS_DATE || '',
                                   CLASS_ID: effectiveClassId || s.CLASS_ID,
                                 });
                               }}
-                              className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-100"
+                              className="rounded-md border border-slate-300 bg-white p-1.5 text-slate-800 hover:bg-slate-100"
                               title="Edit Siswa"
                             >
                               <Pencil className="h-3.5 w-3.5" />
@@ -829,7 +834,7 @@ export function StudentsView({
                             <button
                               type="button"
                               onClick={() => setDeleteTarget(s)}
-                              className="rounded-md border border-red-200 bg-white p-1.5 text-red-600 hover:bg-red-50"
+                              className="rounded-md border border-red-200 bg-white p-1.5 text-red-700 hover:bg-red-50"
                               title="Hapus Siswa"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -842,7 +847,7 @@ export function StudentsView({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={23} className="py-12 text-center text-sm text-slate-400">
+                  <td colSpan={23} className="py-12 text-center text-sm font-medium text-slate-700">
                     Tidak ada data siswa yang sesuai untuk tahun ajaran ini.
                   </td>
                 </tr>
@@ -1032,18 +1037,18 @@ export function StudentsView({
                 }}
               />
               {parsedNikInfo && (
-                <p className="mt-1 text-[11px] font-medium text-emerald-700">
-                  Tgl lahir ({parsedNikInfo.birthDate}) &amp; JK ({parsedNikInfo.gender}) terisi otomatis dari NIK.
+                <p className="mt-1 text-[11px] font-semibold text-emerald-900">
+                  Tgl lahir ({formatDateDDMMYYYY(parsedNikInfo.birthDate)}) &amp; JK ({parsedNikInfo.gender}) terisi otomatis dari NIK.
                 </p>
               )}
               {nikWilayahStatus && (
-                <p className="mt-0.5 text-[11px] font-medium text-emerald-700">
+                <p className="mt-0.5 text-[11px] font-semibold text-emerald-900">
                   {nikWilayahStatus}
                 </p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">4. Nomor KK</label>
+              <label className="block text-xs font-semibold text-slate-900 mb-1">4. Nomor KK</label>
               <input
                 maxLength={16}
                 placeholder="16 digit No. KK"
@@ -1069,13 +1074,13 @@ export function StudentsView({
                 }}
               />
               {matchedKkParents && (
-                <p className="mt-1 text-[11px] font-medium text-emerald-700">
+                <p className="mt-1 text-[11px] font-semibold text-emerald-900">
                   No. KK cocok — Nama Ayah &amp; Ibu diisi otomatis.
                 </p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-slate-900 mb-1">
                 5. Tempat Lahir
               </label>
               <input
@@ -1085,14 +1090,13 @@ export function StudentsView({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                6. Tanggal Lahir
+              <label className="block text-xs font-semibold text-slate-900 mb-1">
+                6. Tanggal Lahir (dd/mm/yyyy)
               </label>
-              <input
-                type="date"
-                className={`${INPUT_CLASS} font-mono-tabular`}
+              <DateInputDDMMYYYY
+                className={INPUT_CLASS}
                 value={editing.BIRTH_DATE || ''}
-                onChange={(e) => setEditing({ ...editing, BIRTH_DATE: e.target.value })}
+                onChange={(val) => setEditing({ ...editing, BIRTH_DATE: val })}
               />
             </div>
             <div>
@@ -1219,15 +1223,13 @@ export function StudentsView({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                16. Tanggal Kedatangan
+              <label className="block text-xs font-semibold text-slate-900 mb-1">
+                16. Tanggal Kedatangan (dd/mm/yyyy)
               </label>
-              <input
-                type="date"
-                className={`${INPUT_CLASS} font-mono-tabular`}
-                value={normalizeDateInput(editing.KEDATANGAN)}
-                onChange={(e) => {
-                  const nextKedatangan = e.target.value;
+              <DateInputDDMMYYYY
+                className={INPUT_CLASS}
+                value={editing.KEDATANGAN || ''}
+                onChange={(nextKedatangan) => {
                   setEditing((prev) =>
                     prev
                       ? {
@@ -1246,20 +1248,20 @@ export function StudentsView({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-slate-900 mb-1">
                 17. Masa Belajar
               </label>
               <input
                 readOnly={Boolean(normalizeDateInput(editing.KEDATANGAN))}
                 placeholder="Otomatis dari tgl kedatangan"
                 className={`${INPUT_CLASS} ${
-                  normalizeDateInput(editing.KEDATANGAN) ? 'bg-amber-50/50 font-semibold text-emerald-900' : ''
+                  normalizeDateInput(editing.KEDATANGAN) ? 'bg-amber-50/50 font-semibold text-emerald-950' : ''
                 }`}
                 value={liveMasaBelajar}
                 onChange={(e) => setEditing({ ...editing, MASA_BELAJAR: e.target.value })}
               />
               {normalizeDateInput(editing.KEDATANGAN) && (
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p className="mt-1 text-[11px] font-medium text-slate-800">
                   {editing.STATUS === 'NONAKTIF' || editing.STATUS === 'LULUS'
                     ? `Dihitung dari Kedatangan s.d. Tanggal ${editing.STATUS === 'LULUS' ? 'Lulus' : 'Nonaktif'}.`
                     : 'Dihitung otomatis dari Kedatangan s.d. hari ini.'}
@@ -1267,7 +1269,7 @@ export function StudentsView({
               )}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Kelas *</label>
+              <label className="block text-xs font-semibold text-slate-900 mb-1">Kelas *</label>
               <select
                 required
                 className={INPUT_CLASS}
@@ -1293,7 +1295,7 @@ export function StudentsView({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
+              <label className="block text-xs font-semibold text-slate-900 mb-1">Status</label>
               <select
                 className={INPUT_CLASS}
                 value={editing.STATUS || 'AKTIF'}
@@ -1323,16 +1325,14 @@ export function StudentsView({
             </div>
             {(editing.STATUS === 'NONAKTIF' || editing.STATUS === 'LULUS') && (
               <div>
-                <label className="block text-xs font-semibold text-red-700 mb-1">
-                  Tanggal {editing.STATUS === 'LULUS' ? 'Lulus' : 'Nonaktif'} *
+                <label className="block text-xs font-semibold text-red-800 mb-1">
+                  Tanggal {editing.STATUS === 'LULUS' ? 'Lulus' : 'Nonaktif'} (dd/mm/yyyy) *
                 </label>
-                <input
-                  type="date"
+                <DateInputDDMMYYYY
                   required
-                  className={`${INPUT_CLASS} font-mono-tabular border-red-300 focus:border-red-600 focus:ring-red-600/15`}
-                  value={normalizeDateInput(editing.STATUS_DATE)}
-                  onChange={(e) => {
-                    const nextDate = e.target.value;
+                  className={`${INPUT_CLASS} border-red-400 focus:border-red-600 focus:ring-red-600/15`}
+                  value={editing.STATUS_DATE || ''}
+                  onChange={(nextDate) => {
                     setEditing((prev) =>
                       prev
                         ? {
@@ -1622,24 +1622,24 @@ export function StudentsView({
           maxWidthClass="max-w-lg"
         >
           <div className="space-y-4">
-            <p className="text-xs leading-relaxed text-slate-600">
+            <p className="text-xs leading-relaxed text-slate-800">
               Unggah file <code>.xlsx</code>, <code>.xls</code>, atau <code>.csv</code> sesuai urutan
               kolom template: <b>NIS</b>, <b>NAMA LENGKAP</b>, <b>NIK</b>, <b>NOMOR KK</b>,{' '}
               <b>TEMPAT LAHIR</b>, <b>TANGGAL LAHIR</b>, <b>JENIS KELAMIN</b>, <b>NISN</b>,{' '}
               <b>NAMA AYAH</b>, <b>NAMA IBU</b>, <b>NAMA WALI</b>, <b>HUBUNGAN KELUARGA</b>,{' '}
               <b>ALAMAT WALI</b>, <b>RT/RW</b>, <b>DESA/KEL</b>, <b>KECAMATAN</b>,{' '}
               <b>KABUPATEN/KOTA</b>, <b>PROVINSI</b>, <b>KEDATANGAN</b>, <b>MASABELAJAR</b>, dan{' '}
-              <b>NAMA_KELAS</b>. (NIS, NISN, dan NIK tidak boleh sama; tanggal lahir otomatis diisi
-              dari NIK dan nama ayah/ibu otomatis diisi dari No. KK jika kosong).
+              <b>NAMA_KELAS</b>. Format tanggal otomatis diubah ke <b>dd/mm/yyyy</b> serta font
+              dan format teks diseragamkan otomatis sesuai standar aplikasi.
             </p>
             <input
               type="file"
               accept=".xlsx,.xls,.csv"
               disabled={busy}
               onChange={handleImportFile}
-              className="w-full rounded-lg border border-slate-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-800"
+              className="w-full rounded-lg border border-slate-300 p-2 text-sm text-slate-900 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-900"
             />
-            {busy && <div className="text-xs font-semibold text-emerald-700">Mengimpor data...</div>}
+            {busy && <div className="text-xs font-semibold text-emerald-900">Mengimpor data...</div>}
           </div>
         </Modal>
       )}

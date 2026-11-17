@@ -78,7 +78,7 @@ export function LoginView({ appState, onSuccess, onToast }: LoginViewProps) {
           </div>
 
           <h2 className="text-2xl font-bold tracking-tight text-[#042f24]">Masuk ke eRapor</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-800">
             Masukkan username dan password sesuai hak akses Anda.
           </p>
 
@@ -132,14 +132,14 @@ export function LoginView({ appState, onSuccess, onToast }: LoginViewProps) {
                   }}
                   className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2 text-left transition-colors hover:border-[#d4af37] hover:bg-amber-50/60"
                 >
-                  <div className="text-xs font-semibold text-[#042f24]">{acc.label}</div>
-                  <div className="text-[11px] font-mono-tabular text-slate-500">
+                  <div className="text-xs font-bold text-[#042f24]">{acc.label}</div>
+                  <div className="text-[11px] font-mono-tabular font-medium text-slate-800">
                     {acc.username} / {acc.pass}
                   </div>
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-[11px] text-amber-800">
+            <p className="mt-3 text-[11px] font-medium text-amber-900">
               Demi keamanan, Admin disarankan mengganti seluruh password awal di menu Pengguna.
             </p>
           </div>

@@ -804,7 +804,7 @@ function generateReportsBatch(token, studentIds, semester, academicYear) {
     const extras = allExtras.filter(x => x.STUDENT_ID === studentId);
     const note = allNotes.find(x => x.STUDENT_ID === studentId) || {};
 
-    const fileBase = sanitizeFileName_('Rapor ' + student.NAME + ' Semester ' + semester + ' ' + academicYear);
+    const fileBase = sanitizeFileName_([student.NAME, student.NISN, 'Semester ' + semester, String(academicYear || '').replace(/[\\/]/g, '-')].filter(Boolean).join('-'));
     const doc = DocumentApp.create(fileBase);
     const body = doc.getBody();
 
