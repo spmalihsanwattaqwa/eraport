@@ -30,11 +30,15 @@ import {
   computeFinalScore,
   DEFAULT_EXTRA_CATEGORIES,
   DEFAULT_SYAKHSIYAH_CATEGORIES,
+  formatGradeCategoryArabic,
   formatTahfidzKitabah,
   getGradeCategory,
   getPromotionDecision,
+  isFemaleGender,
   numberToArabicWords,
   parseScoreWeights,
+  parseSubjectLevels,
+  subjectMatchesLevel,
   toArabicDigits,
 } from './src/utils/arabic.ts';
 import {
@@ -521,9 +525,14 @@ function computeRecapData(
 ) {
   const settings = db.SETTINGS;
   const enrolled = getStudentsForYearAndClass(db, academicYear, classId);
+  const clazz = classId ? db.CLASSES.find((c) => c.CLASS_ID === classId) : undefined;
 
   const subjects = db.SUBJECTS
-    .filter((s) => String(s.ACTIVE).toUpperCase() === 'YA')
+    .filter(
+      (s) =>
+        String(s.ACTIVE).toUpperCase() === 'YA' &&
+        (!clazz?.LEVEL || subjectMatchesLevel(s.LEVEL, clazz.LEVEL))
+    )
     .sort((a, b) => Number(a.DISPLAY_ORDER || 0) - Number(b.DISPLAY_ORDER || 0));
 
   if (!subjects.length) {
@@ -561,8 +570,10 @@ function computeRecapData(
 
     const totalFixed = count ? Math.round((total + Number.EPSILON) * 10) / 10 : '';
     const avgFixed = count ? Math.round((total / count + Number.EPSILON) * 10) / 10 : '';
-    const category = getGradeCategory(avgFixed, settings.GRADE_CATEGORIES);
-    const promo = getPromotionDecision(semester, category);
+    const isFemale = isFemaleGender(st.GENDER);
+    const rawCategory = getGradeCategory(avgFixed, settings.GRADE_CATEGORIES);
+    const category = formatGradeCategoryArabic(rawCategory, isFemale);
+    const promo = getPromotionDecision(semester, rawCategory, isFemale);
     const nt = noteMap.get(st.STUDENT_ID);
     const tahfidzType = String(nt?.TAHFIDZ_TYPE || '').trim();
     const tahfidzScore = nt ? cleanScoreValue(nt.TAHFIDZ_SCORE) : '';
@@ -644,10 +655,15 @@ function buildReportPreview(db: DatabaseSchema, studentId: string, semester: str
   const clazz = db.CLASSES.find((c) => c.CLASS_ID === resolvedClassId) || {
     CLASS_NAME: '-',
     HOMEROOM_TEACHER: '-',
+    LEVEL: '',
   };
 
   const subjects = db.SUBJECTS
-    .filter((s) => String(s.ACTIVE).toUpperCase() === 'YA')
+    .filter(
+      (s) =>
+        String(s.ACTIVE).toUpperCase() === 'YA' &&
+        (!clazz.LEVEL || subjectMatchesLevel(s.LEVEL, clazz.LEVEL))
+    )
     .sort((a, b) => Number(a.DISPLAY_ORDER || 0) - Number(b.DISPLAY_ORDER || 0));
 
   const scoreMap = new Map<string, ScoreRecord>();
@@ -696,7 +712,8 @@ function buildReportPreview(db: DatabaseSchema, studentId: string, semester: str
     };
   });
 
-  const promotion = getPromotionDecision(semester, stRecap?.category || '-');
+  const isFemale = isFemaleGender(student.GENDER);
+  const promotion = getPromotionDecision(semester, stRecap?.category || '-', isFemale);
   const noteRecord = note as Partial<TeacherNoteRecord>;
   const tahfidzType = String(noteRecord.TAHFIDZ_TYPE || '').trim();
   const tahfidzVal = cleanScoreValue(noteRecord.TAHFIDZ_SCORE);
@@ -720,7 +737,10 @@ function buildReportPreview(db: DatabaseSchema, studentId: string, semester: str
       average: stRecap && stRecap.average !== '' ? toArabicDigits(stRecap.average) : '-',
       averageArab: stRecap?.averageArab || '-',
       rank: stRecap && stRecap.rank !== '-' ? toArabicDigits(stRecap.rank) : '-',
-      category: stRecap?.category || '-',
+      category:
+        stRecap?.category && stRecap.category !== '-'
+          ? formatGradeCategoryArabic(stRecap.category, isFemale)
+          : '-',
     },
     promotion,
     extras,
@@ -1134,9 +1154,15 @@ async function startServer() {
       if (!record[cfg.idField]) {
         record[cfg.idField] = makeId(cfg.prefix);
       }
-      if (entity === 'subjects' && !record.SUBJECT_NAME_ARAB && record.GROUP_NAME && /[\u0600-\u06FF]/.test(record.GROUP_NAME)) {
-        record.SUBJECT_NAME_ARAB = record.GROUP_NAME;
-        record.GROUP_NAME = 'A';
+      if (entity === 'subjects') {
+        if (!record.SUBJECT_NAME_ARAB && record.GROUP_NAME && /[\u0600-\u06FF]/.test(record.GROUP_NAME)) {
+          record.SUBJECT_NAME_ARAB = record.GROUP_NAME;
+          record.GROUP_NAME = 'A';
+        }
+        const parsedLevels = parseSubjectLevels(record.LEVEL);
+        record.LEVEL = parsedLevels.length
+          ? parsedLevels.join(', ')
+          : String(db.SETTINGS.SCHOOL_LEVEL || 'WUSTHA').trim().toUpperCase();
       }
       record.UPDATED_AT = nowStr();
 
@@ -1903,14 +1929,30 @@ async function startServer() {
         return Number(a[1].semester) - Number(b[1].semester);
       });
 
-    // Gather subjects: all active subjects + any historical subject the student has scores for
+    // Gather subjects: subjects matching any class level the student enrolled in + any scored historical subject
+    const isFemale = isFemaleGender(student.GENDER);
     const studentScoreSubjectIds = new Set(
       db.SCORES.filter((sc) => sc.STUDENT_ID === studentId && cleanScoreValue(sc.FINAL_SCORE) !== '').map(
         (sc) => sc.SUBJECT_ID
       )
     );
+    const studentLevelSet = new Set<string>();
+    const currentCls = db.CLASSES.find((c) => c.CLASS_ID === student.CLASS_ID);
+    if (currentCls?.LEVEL) studentLevelSet.add(String(currentCls.LEVEL).trim().toUpperCase());
+    for (const [, { academicYear }] of sortedTerms) {
+      const cid = getStudentClassIdForYear(db, student, academicYear);
+      const cls = db.CLASSES.find((c) => c.CLASS_ID === cid);
+      if (cls?.LEVEL) studentLevelSet.add(String(cls.LEVEL).trim().toUpperCase());
+    }
+    const levelArr = Array.from(studentLevelSet);
+
     const subjectList = db.SUBJECTS
-      .filter((s) => String(s.ACTIVE).toUpperCase() === 'YA' || studentScoreSubjectIds.has(s.SUBJECT_ID))
+      .filter(
+        (s) =>
+          studentScoreSubjectIds.has(s.SUBJECT_ID) ||
+          (String(s.ACTIVE).toUpperCase() === 'YA' &&
+            (levelArr.length === 0 || levelArr.some((lvl) => subjectMatchesLevel(s.LEVEL, lvl))))
+      )
       .sort((a, b) => Number(a.DISPLAY_ORDER || 0) - Number(b.DISPLAY_ORDER || 0));
 
     const scoreLookup = new Map<string, number | ''>();
@@ -1950,10 +1992,12 @@ async function startServer() {
         }
       }
 
-      const category = stRow?.category && stRow.category !== '-'
-        ? stRow.category
-        : getGradeCategory(average, db.SETTINGS.GRADE_CATEGORIES);
-      const promo = getPromotionDecision(semester, category);
+      const rawCat =
+        stRow?.category && stRow.category !== '-'
+          ? stRow.category
+          : getGradeCategory(average, db.SETTINGS.GRADE_CATEGORIES);
+      const category = formatGradeCategoryArabic(rawCat, isFemale);
+      const promo = getPromotionDecision(semester, rawCat, isFemale);
 
       const note = db.TEACHER_NOTES.find(
         (n) =>
@@ -2033,7 +2077,10 @@ async function startServer() {
         subjectCount: subjects.length,
         cumulativeAverage,
         cumulativeAverageArab: cumulativeAverage !== '' ? numberToArabicWords(cumulativeAverage) : '-',
-        cumulativeCategory: getGradeCategory(cumulativeAverage, db.SETTINGS.GRADE_CATEGORIES),
+        cumulativeCategory: formatGradeCategoryArabic(
+          getGradeCategory(cumulativeAverage, db.SETTINGS.GRADE_CATEGORIES),
+          isFemale
+        ),
       },
     };
 
@@ -2559,17 +2606,18 @@ async function startServer() {
         r && r.average !== '' && Number.isFinite(Number(r.average)) ? Number(r.average) : '';
       const sem2Cat = r ? r.category : '-';
       const sem2Rank = r ? r.rank : '-';
-      const promoRule = getPromotionDecision('2', sem2Cat);
+      const isFemale = isFemaleGender(student.GENDER);
+      const promoRule = getPromotionDecision('2', sem2Cat, isFemale);
 
       let ruleDecision: 'NAIK' | 'TINGGAL' | 'BELUM' = 'BELUM';
       let ruleLabel = 'Belum Ada Nilai Sem 2';
       if (sem2Cat && sem2Cat !== '-') {
         if (promoRule?.isRetained) {
           ruleDecision = 'TINGGAL';
-          ruleLabel = 'Tidak Naik (راسب)';
+          ruleLabel = isFemale ? 'Tidak Naik (راسبة)' : 'Tidak Naik (راسب)';
         } else {
           ruleDecision = 'NAIK';
-          ruleLabel = 'Naik Kelas (يرقى)';
+          ruleLabel = isFemale ? 'Naik Kelas (ترقى)' : 'Naik Kelas (يرقى)';
         }
       }
 

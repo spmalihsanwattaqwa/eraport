@@ -1,6 +1,7 @@
 import React from 'react';
 import { Printer, User } from 'lucide-react';
 import type { AppSettings, StudentRecord } from '../types/erapor.ts';
+import { isFemaleGender } from '../utils/arabic.ts';
 import {
   composeStudentAddress,
   computeMasaBelajar,
@@ -21,8 +22,9 @@ export function StudentBiodataSheet({
   const masaBelajar =
     computeMasaBelajar(student.KEDATANGAN, student.STATUS, student.STATUS_DATE, student.MASA_BELAJAR) ||
     '-';
+  const isFemale = isFemaleGender(student.GENDER);
   const genderLabel =
-    student.GENDER === 'P' ? 'Perempuan' : student.GENDER === 'L' ? 'Laki-laki' : student.GENDER || '-';
+    isFemale ? 'Perempuan' : student.GENDER === 'L' ? 'Laki-laki' : student.GENDER || '-';
   const birthPlaceDate = [
     student.BIRTH_PLACE || '',
     student.BIRTH_DATE ? formatIndonesianDate(student.BIRTH_DATE) : '',
@@ -34,26 +36,26 @@ export function StudentBiodataSheet({
   const waliRelation = student.WALI_RELATION || '-';
   const waliAddress = student.WALI_ADDRESS || '-';
 
-  const rowClass = 'border-b border-slate-200/90';
-  const labelClass = 'py-1.5 pr-2 text-slate-600 font-medium w-[195px] align-top';
-  const sepClass = 'py-1.5 px-1.5 text-slate-500 w-3 align-top';
-  const valClass = 'py-1.5 text-slate-900 font-medium align-top';
+  const rowClass = 'border-b border-slate-300';
+  const labelClass = 'py-1.5 pr-2 text-black font-medium w-[195px] align-top';
+  const sepClass = 'py-1.5 px-1.5 text-black w-3 align-top';
+  const valClass = 'py-1.5 text-black font-medium align-top';
 
   return (
-    <div className="print-only-sheet mx-auto w-full max-w-[794px] bg-white p-7 text-slate-900 border border-slate-200 text-[12px] leading-relaxed">
+    <div className="print-only-sheet mx-auto w-full max-w-[794px] bg-white p-7 text-black border border-slate-300 text-[12px] leading-relaxed">
       {/* Judul + Pas Foto */}
-      <div className="flex items-start justify-between gap-5 border-b-2 border-[#064e3b] pb-4 mb-4">
+      <div className="flex items-start justify-between gap-5 border-b-2 border-black pb-4 mb-4">
         <div className="flex-1 pt-2">
-          <div className="text-lg font-bold tracking-wide text-[#042f24] uppercase">
+          <div className="text-lg font-bold tracking-wide text-black uppercase">
             Biodata Peserta Didik
           </div>
-          <div className="font-arabic text-base font-bold text-[#064e3b] mt-0.5">
-            بيانات الطالب الشخصية
+          <div className="font-arabic text-base font-bold text-black mt-0.5">
+            {isFemale ? 'بيانات الطالبة الشخصية' : 'بيانات الطالب الشخصية'}
           </div>
         </div>
 
         {/* Bingkai Pas Foto 3x4 */}
-        <div className="w-[104px] h-[138px] shrink-0 overflow-hidden rounded border border-slate-400 bg-slate-50 flex flex-col items-center justify-center">
+        <div className="w-[104px] h-[138px] shrink-0 overflow-hidden rounded border border-black bg-white flex flex-col items-center justify-center">
           {student.PHOTO ? (
             <img
               src={student.PHOTO}
@@ -61,8 +63,8 @@ export function StudentBiodataSheet({
               className="h-full w-full object-cover object-top"
             />
           ) : (
-            <div className="flex flex-col items-center justify-center text-slate-400 px-2 text-center">
-              <User className="h-8 w-8 mb-1 opacity-60" />
+            <div className="flex flex-col items-center justify-center text-black px-2 text-center">
+              <User className="h-8 w-8 mb-1 opacity-70" />
               <span className="text-[10px] font-medium">Pas Foto 3×4</span>
             </div>
           )}
@@ -71,7 +73,7 @@ export function StudentBiodataSheet({
 
       {/* Bagian A: Identitas Siswa */}
       <div className="mb-4">
-        <div className="bg-[#064e3b]/10 border-l-4 border-[#064e3b] px-2.5 py-1 text-xs font-bold text-[#042f24] uppercase tracking-wide mb-1.5">
+        <div className="bg-slate-100 border-l-4 border-black px-2.5 py-1 text-xs font-bold text-black uppercase tracking-wide mb-1.5">
           A. Identitas Peserta Didik
         </div>
         <table className="w-full border-collapse">
@@ -136,7 +138,7 @@ export function StudentBiodataSheet({
 
       {/* Bagian B: Alamat Domisili */}
       <div className="mb-4">
-        <div className="bg-[#064e3b]/10 border-l-4 border-[#064e3b] px-2.5 py-1 text-xs font-bold text-[#042f24] uppercase tracking-wide mb-1.5">
+        <div className="bg-slate-100 border-l-4 border-black px-2.5 py-1 text-xs font-bold text-black uppercase tracking-wide mb-1.5">
           B. Alamat Domisili Peserta Didik
         </div>
         <table className="w-full border-collapse">
@@ -177,7 +179,7 @@ export function StudentBiodataSheet({
 
       {/* Bagian C: Identitas Orang Tua & Wali */}
       <div className="mb-6">
-        <div className="bg-[#064e3b]/10 border-l-4 border-[#064e3b] px-2.5 py-1 text-xs font-bold text-[#042f24] uppercase tracking-wide mb-1.5">
+        <div className="bg-slate-100 border-l-4 border-black px-2.5 py-1 text-xs font-bold text-black uppercase tracking-wide mb-1.5">
           C. Identitas Orang Tua &amp; Wali
         </div>
         <table className="w-full border-collapse">

@@ -179,7 +179,6 @@ export function RecapView({
     }
     const header = [
       'No',
-      'Kode',
       'Mata Pelajaran',
       'Nama Arab',
       ...transcript.terms.map((t) => `${t.academicYear} Sem ${t.semester}`),
@@ -203,9 +202,8 @@ export function RecapView({
       header,
       [
         '-',
-        'TAHFIDZ',
         'Tahfidz',
-        'التحفيظ والقراءة',
+        'تحفيظ القرآن',
         ...transcript.terms.map((t) => {
           const score = t.tahfidz?.score;
           const type = t.tahfidz?.type;
@@ -218,7 +216,6 @@ export function RecapView({
       ],
       ...transcript.subjects.map((sub, i) => [
         i + 1,
-        sub.code,
         sub.name,
         sub.nameArab,
         ...transcript.terms.map((t) => sub.scoresByTerm[t.key] ?? ''),
@@ -226,14 +223,12 @@ export function RecapView({
       ]),
       [
         '',
-        '',
         'TOTAL NILAI',
         '',
         ...transcript.terms.map((t) => (t.total === '' ? '' : t.total)),
         '',
       ],
       [
-        '',
         '',
         'RATA-RATA SEMESTER',
         '',
@@ -649,40 +644,46 @@ export function RecapView({
           </div>
 
           {transcript && (
-            <div className="print-only-sheet space-y-5 rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-6 shadow-[0_6px_22px_rgba(6,78,59,0.06)]">
+            <div className="print-only-sheet space-y-5 rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 p-6 shadow-[0_6px_22px_rgba(6,78,59,0.06)] print:text-black">
               {/* Transcript Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#e6dcc6] pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#e6dcc6] pb-4 print:border-black">
                 <div>
-                  <div className="text-xs font-semibold text-emerald-800">
+                  <div className="text-xs font-semibold text-emerald-800 print:text-black">
                     Transkrip Nilai Lintas Semester &amp; Tahun Ajaran
                   </div>
-                  <h3 className="mt-1 text-2xl font-bold text-slate-900 font-arabic">
+                  <h3 className="mt-1 text-2xl font-bold text-slate-900 font-arabic print:text-black">
                     {transcript.student.NAME}
                   </h3>
-                  <div className="mt-1 text-xs text-slate-600 font-mono-tabular">
+                  <div className="mt-1 text-xs text-slate-600 font-mono-tabular print:text-black">
                     NIS / NISN: {transcript.student.NIS || '-'} / {transcript.student.NISN || '-'} ·
                     Kelas Saat Ini: <span className="font-semibold">{transcript.className}</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2">
-                    <div className="text-[11px] font-medium text-slate-500">Semester Diikuti</div>
-                    <div className="text-lg font-bold font-mono-tabular text-slate-900">
+                  <div className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2 print:border-black">
+                    <div className="text-[11px] font-medium text-slate-500 print:text-black">
+                      Semester Diikuti
+                    </div>
+                    <div className="text-lg font-bold font-mono-tabular text-slate-900 print:text-black">
                       {transcript.overall.termCount}
                     </div>
                   </div>
-                  <div className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2">
-                    <div className="text-[11px] font-medium text-slate-500">Rata-rata Kumulatif</div>
-                    <div className="text-lg font-bold font-mono-tabular text-emerald-800">
+                  <div className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2 print:border-black">
+                    <div className="text-[11px] font-medium text-slate-500 print:text-black">
+                      Rata-rata Kumulatif
+                    </div>
+                    <div className="text-lg font-bold font-mono-tabular text-emerald-800 print:text-black">
                       {transcript.overall.cumulativeAverage !== ''
                         ? transcript.overall.cumulativeAverage
                         : '-'}
                     </div>
                   </div>
-                  <div className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2">
-                    <div className="text-[11px] font-medium text-slate-500">Predikat Kumulatif</div>
-                    <div className="text-lg font-bold font-arabic text-slate-900">
+                  <div className="rounded-lg border border-[#e2d6bc] bg-white px-3 py-2 print:border-black">
+                    <div className="text-[11px] font-medium text-slate-500 print:text-black">
+                      Predikat Kumulatif
+                    </div>
+                    <div className="text-lg font-bold font-arabic text-slate-900 print:text-black">
                       {transcript.overall.cumulativeCategory}
                     </div>
                   </div>
@@ -695,42 +696,40 @@ export function RecapView({
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm border-collapse">
-                    <thead className="bg-[#064e3b] text-xs font-semibold text-amber-50">
+                  <table className="w-full text-left text-sm border-collapse print:text-black">
+                    <thead className="bg-[#064e3b] text-xs font-semibold text-amber-50 print:bg-slate-200 print:text-black">
                       <tr>
-                        <th className="px-3 py-3 w-12 border border-white/15">No.</th>
-                        <th className="px-3 py-3 border border-white/15">Kode</th>
-                        <th className="px-3 py-3 min-w-[200px] border border-white/15">
+                        <th className="px-3 py-3 w-12 border border-white/15 print:border-slate-500">
+                          No.
+                        </th>
+                        <th className="px-3 py-3 min-w-[200px] border border-white/15 print:border-slate-500">
                           Mata Pelajaran
                         </th>
                         {transcript.terms.map((t) => (
                           <th
                             key={t.key}
-                            className="px-3 py-2.5 text-center min-w-[115px] border border-white/15"
+                            className="px-3 py-2.5 text-center min-w-[115px] border border-white/15 print:border-slate-500"
                           >
                             <div className="font-mono-tabular">{t.academicYear}</div>
-                            <div className="text-[11px] font-normal text-[#f3d16c]">
+                            <div className="text-[11px] font-normal text-[#f3d16c] print:text-black">
                               Semester {t.semester} ({t.className})
                             </div>
                           </th>
                         ))}
-                        <th className="px-3 py-3 text-center bg-[#043427] border border-white/15 min-w-[100px]">
+                        <th className="px-3 py-3 text-center bg-[#043427] border border-white/15 min-w-[100px] print:bg-slate-200 print:border-slate-500">
                           Rata-rata Mapel
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#eee5d3]">
-                      <tr className="bg-emerald-50/55">
-                        <td className="px-3 py-2 font-mono-tabular text-slate-500 border border-[#e6dcc6]">
+                      <tr className="bg-emerald-50/55 print:bg-white">
+                        <td className="px-3 py-2 font-mono-tabular text-slate-500 border border-[#e6dcc6] print:border-slate-500 print:text-black">
                           -
                         </td>
-                        <td className="px-3 py-2 font-mono-tabular font-semibold text-emerald-900 border border-[#e6dcc6]">
-                          TAHFIDZ
-                        </td>
-                        <td className="px-3 py-2 border border-[#e6dcc6]">
-                          <div className="font-semibold text-emerald-950">Tahfidz</div>
-                          <div className="text-xs font-arabic text-slate-600">
-                            التحفيظ والقراءة
+                        <td className="px-3 py-2 border border-[#e6dcc6] print:border-slate-500">
+                          <div className="font-semibold text-emerald-950 print:text-black">Tahfidz</div>
+                          <div className="text-xs font-arabic text-slate-600 print:text-black">
+                            تحفيظ القرآن
                           </div>
                         </td>
                         {transcript.terms.map((t) => {
@@ -739,34 +738,31 @@ export function RecapView({
                           return (
                             <td
                               key={t.key}
-                              className="px-3 py-2 text-center border border-[#e6dcc6]"
+                              className="px-3 py-2 text-center border border-[#e6dcc6] print:border-slate-500"
                             >
-                              <div className="font-mono-tabular font-bold text-emerald-900">
+                              <div className="font-mono-tabular font-bold text-emerald-900 print:text-black">
                                 {score !== '' && score !== undefined ? score : '-'}
                               </div>
                               {type && (
-                                <div className="text-[11px] font-medium text-slate-600">
+                                <div className="text-[11px] font-medium text-slate-600 print:text-black">
                                   {type}
                                 </div>
                               )}
                             </td>
                           );
                         })}
-                        <td className="px-3 py-2 text-center font-mono-tabular text-slate-500 bg-emerald-50/60 border border-[#e6dcc6]">
+                        <td className="px-3 py-2 text-center font-mono-tabular text-slate-500 bg-emerald-50/60 border border-[#e6dcc6] print:bg-white print:border-slate-500 print:text-black">
                           -
                         </td>
                       </tr>
                       {transcript.subjects.map((sub, idx) => (
                         <tr key={sub.id} className="hover:bg-amber-50/45">
-                          <td className="px-3 py-2 font-mono-tabular text-slate-500 border border-[#e6dcc6]">
+                          <td className="px-3 py-2 font-mono-tabular text-slate-500 border border-[#e6dcc6] print:border-slate-500 print:text-black">
                             {idx + 1}
                           </td>
-                          <td className="px-3 py-2 font-mono-tabular font-semibold text-slate-700 border border-[#e6dcc6]">
-                            {sub.code}
-                          </td>
-                          <td className="px-3 py-2 border border-[#e6dcc6]">
-                            <div className="font-medium text-slate-900">{sub.name}</div>
-                            <div className="text-xs font-arabic text-slate-500">
+                          <td className="px-3 py-2 border border-[#e6dcc6] print:border-slate-500">
+                            <div className="font-medium text-slate-900 print:text-black">{sub.name}</div>
+                            <div className="text-xs font-arabic text-slate-500 print:text-black">
                               {sub.nameArab}
                             </div>
                           </td>
@@ -775,46 +771,54 @@ export function RecapView({
                             return (
                               <td
                                 key={t.key}
-                                className="px-3 py-2 text-center font-mono-tabular font-medium text-slate-800 border border-[#e6dcc6]"
+                                className="px-3 py-2 text-center font-mono-tabular font-medium text-slate-800 border border-[#e6dcc6] print:border-slate-500 print:text-black"
                               >
                                 {val !== '' && val !== undefined ? val : '-'}
                               </td>
                             );
                           })}
-                          <td className="px-3 py-2 text-center font-mono-tabular font-bold text-emerald-900 bg-emerald-50/60 border border-[#e6dcc6]">
+                          <td className="px-3 py-2 text-center font-mono-tabular font-bold text-emerald-900 bg-emerald-50/60 border border-[#e6dcc6] print:bg-white print:border-slate-500 print:text-black">
                             {sub.average !== '' ? sub.average : '-'}
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-[#f5efe0] text-xs font-semibold">
+                    <tfoot className="bg-[#f5efe0] text-xs font-semibold print:bg-slate-100 print:text-black">
                       <tr>
-                        <td colSpan={3} className="px-3 py-2.5 text-slate-800 border border-[#e6dcc6]">
+                        <td
+                          colSpan={2}
+                          className="px-3 py-2.5 text-slate-800 border border-[#e6dcc6] print:border-slate-500 print:text-black"
+                        >
                           Total Nilai Semester
                         </td>
                         {transcript.terms.map((t) => (
                           <td
                             key={t.key}
-                            className="px-3 py-2.5 text-center font-mono-tabular font-bold text-slate-900 border border-[#e6dcc6]"
+                            className="px-3 py-2.5 text-center font-mono-tabular font-bold text-slate-900 border border-[#e6dcc6] print:border-slate-500 print:text-black"
                           >
                             {t.total !== '' ? t.total : '-'}
                           </td>
                         ))}
-                        <td className="px-3 py-2.5 text-center border border-[#e6dcc6]">-</td>
+                        <td className="px-3 py-2.5 text-center border border-[#e6dcc6] print:border-slate-500">
+                          -
+                        </td>
                       </tr>
                       <tr>
-                        <td colSpan={3} className="px-3 py-2.5 text-slate-800 border border-[#e6dcc6]">
+                        <td
+                          colSpan={2}
+                          className="px-3 py-2.5 text-slate-800 border border-[#e6dcc6] print:border-slate-500 print:text-black"
+                        >
                           Rata-rata Semester
                         </td>
                         {transcript.terms.map((t) => (
                           <td
                             key={t.key}
-                            className="px-3 py-2.5 text-center font-mono-tabular font-bold text-emerald-800 border border-[#e6dcc6]"
+                            className="px-3 py-2.5 text-center font-mono-tabular font-bold text-emerald-800 border border-[#e6dcc6] print:border-slate-500 print:text-black"
                           >
                             {t.average !== '' ? t.average : '-'}
                           </td>
                         ))}
-                        <td className="px-3 py-2.5 text-center font-mono-tabular font-bold text-emerald-900 bg-emerald-100/60 border border-[#e6dcc6]">
+                        <td className="px-3 py-2.5 text-center font-mono-tabular font-bold text-emerald-900 bg-emerald-100/60 border border-[#e6dcc6] print:bg-white print:border-slate-500 print:text-black">
                           {transcript.overall.cumulativeAverage !== ''
                             ? transcript.overall.cumulativeAverage
                             : '-'}

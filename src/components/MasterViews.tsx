@@ -16,6 +16,7 @@ import {
   DEFAULT_EXTRA_CATEGORIES,
   DEFAULT_SYAKHSIYAH_CATEGORIES,
   parsePredicateCategories,
+  parseSubjectLevels,
 } from '../utils/arabic.ts';
 import { ConfirmDialog, Modal } from './Modal.tsx';
 
@@ -471,9 +472,17 @@ export function SubjectsView({
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing) return;
+    const levels = parseSubjectLevels(editing.LEVEL);
+    if (!levels.length) {
+      onToast('Pilih minimal satu jenjang untuk mata pelajaran ini.', 'err');
+      return;
+    }
     setBusy(true);
     try {
-      await api.saveRecord('subjects', editing);
+      await api.saveRecord('subjects', {
+        ...editing,
+        LEVEL: levels.join(', '),
+      });
       onToast('Mata pelajaran tersimpan.');
       setEditing(null);
       await load();
@@ -563,7 +572,18 @@ export function SubjectsView({
                     <td className="px-4 py-2.5 text-right font-arabic text-base font-bold text-slate-900">
                       {r.SUBJECT_NAME_ARAB || '-'}
                     </td>
-                    <td className="px-4 py-2.5 text-slate-600">{r.LEVEL}</td>
+                    <td className="px-4 py-2.5 text-slate-600">
+                      <div className="flex flex-wrap gap-1">
+                        {parseSubjectLevels(r.LEVEL).map((lvl) => (
+                          <span
+                            key={lvl}
+                            className="inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-900 border border-emerald-200"
+                          >
+                            {lvl}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td className="px-4 py-2.5 text-center font-mono-tabular">{r.GROUP_NAME}</td>
                     <td className="px-4 py-2.5 text-center font-mono-tabular">{r.DISPLAY_ORDER}</td>
                     <td className="px-4 py-2.5 text-xs font-semibold">
@@ -669,22 +689,59 @@ export function SubjectsView({
                 onChange={(e) => setEditing({ ...editing, SUBJECT_NAME_ARAB: e.target.value })}
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Jenjang</label>
-              <select
-                className={INPUT_CLASS}
-                value={editing.LEVEL || defaultLevel}
-                onChange={(e) => setEditing({ ...editing, LEVEL: e.target.value })}
-              >
-                {SCHOOL_LEVELS.map((lvl) => (
-                  <option key={lvl} value={lvl}>
-                    {lvl}
-                  </option>
-                ))}
-                {editing.LEVEL && !SCHOOL_LEVELS.includes(editing.LEVEL as SchoolLevel) && (
-                  <option value={editing.LEVEL}>{editing.LEVEL}</option>
+            <div className="sm:col-span-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Jenjang (Bisa Multi Jenjang) *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = parseSubjectLevels(editing.LEVEL);
+                    const allSelected = SCHOOL_LEVELS.every((l) => current.includes(l));
+                    setEditing({
+                      ...editing,
+                      LEVEL: allSelected ? defaultLevel : SCHOOL_LEVELS.join(', '),
+                    });
+                  }}
+                  className="text-[11px] font-semibold text-emerald-800 hover:underline"
+                >
+                  {SCHOOL_LEVELS.every((l) => parseSubjectLevels(editing.LEVEL).includes(l))
+                    ? 'Reset ke Jenjang Default'
+                    : 'Pilih Semua Jenjang'}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 rounded-lg border border-[#d9ceb5] bg-white p-2.5">
+                {Array.from(new Set([...SCHOOL_LEVELS, ...parseSubjectLevels(editing.LEVEL)])).map(
+                  (lvl) => {
+                    const selectedLevels = parseSubjectLevels(editing.LEVEL);
+                    const checked = selectedLevels.includes(lvl);
+                    return (
+                      <label
+                        key={lvl}
+                        className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors ${
+                          checked
+                            ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
+                            : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-amber-50/40'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? Array.from(new Set([...selectedLevels, lvl]))
+                              : selectedLevels.filter((x) => x !== lvl);
+                            setEditing({ ...editing, LEVEL: next.join(', ') });
+                          }}
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
+                        />
+                        <span>{lvl}</span>
+                      </label>
+                    );
+                  }
                 )}
-              </select>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Kelompok</label>

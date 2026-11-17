@@ -17,6 +17,7 @@ import {
   numberToArabicWords,
   parsePredicateCategories,
   parseScoreWeights,
+  subjectMatchesLevel,
 } from '../utils/arabic.ts';
 
 interface ScoresViewProps {
@@ -68,7 +69,17 @@ export function ScoresView({
     [classes, academicYear]
   );
   const [classId, setClassId] = useState(yearClasses[0]?.CLASS_ID || '');
-  const [subjectId, setSubjectId] = useState(subjects[0]?.SUBJECT_ID || '');
+  const selectedClassObj = useMemo(
+    () => yearClasses.find((c) => c.CLASS_ID === classId) || classes.find((c) => c.CLASS_ID === classId),
+    [yearClasses, classes, classId]
+  );
+  const filteredSubjects = useMemo(() => {
+    const level = selectedClassObj?.LEVEL;
+    if (!level) return subjects;
+    const matched = subjects.filter((s) => subjectMatchesLevel(s.LEVEL, level));
+    return matched.length ? matched : subjects;
+  }, [subjects, selectedClassObj]);
+  const [subjectId, setSubjectId] = useState(filteredSubjects[0]?.SUBJECT_ID || '');
   const [semester, setSemester] = useState(settings.ACTIVE_SEMESTER || '1');
 
   useEffect(() => {
@@ -80,6 +91,12 @@ export function ScoresView({
       setClassId(yearClasses[0]?.CLASS_ID || '');
     }
   }, [yearClasses, classId]);
+
+  useEffect(() => {
+    if (!filteredSubjects.some((s) => s.SUBJECT_ID === subjectId)) {
+      setSubjectId(filteredSubjects[0]?.SUBJECT_ID || '');
+    }
+  }, [filteredSubjects, subjectId]);
 
   // Tab 1: PTS & PAS
   const [rows, setRows] = useState<ScoreGridRow[] | null>(null);
@@ -576,7 +593,7 @@ export function ScoresView({
                 className="w-full rounded-lg border border-[#d9ceb5] bg-white px-3 py-2 text-sm focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 focus:outline-none"
               >
                 <option value="">Pilih Mapel</option>
-                {subjects.map((s) => (
+                {filteredSubjects.map((s) => (
                   <option key={s.SUBJECT_ID} value={s.SUBJECT_ID}>
                     {s.SUBJECT_NAME}
                   </option>

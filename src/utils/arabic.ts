@@ -241,25 +241,68 @@ export function getGradeCategory(avgScore: number | '', categoriesJson?: string)
   return found ? found.name : '-';
 }
 
+export function isFemaleGender(gender: unknown): boolean {
+  const g = String(gender ?? '').trim().toLowerCase();
+  return (
+    g === 'p' ||
+    g === 'perempuan' ||
+    g === 'wanita' ||
+    g === 'pr' ||
+    g === 'female' ||
+    g === 'f' ||
+    g === 'أنثى' ||
+    g === 'مؤنث'
+  );
+}
+
+export function formatGradeCategoryArabic(category: string, isFemale = false): string {
+  const cat = String(category || '').trim();
+  if (!isFemale) return cat || '-';
+  if (cat === 'راسب') return 'راسبة';
+  return cat || '-';
+}
+
+export function parseSubjectLevels(levelStr: unknown): string[] {
+  const raw = String(levelStr ?? '').trim();
+  if (!raw) return [];
+  return Array.from(
+    new Set(
+      raw
+        .split(/[,;|]+/)
+        .map((x) => x.trim().toUpperCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+export function subjectMatchesLevel(subjectLevelStr: unknown, targetLevel: unknown): boolean {
+  const target = String(targetLevel ?? '').trim().toUpperCase();
+  if (!target) return true;
+  const levels = parseSubjectLevels(subjectLevelStr);
+  if (levels.length === 0) return true;
+  return levels.includes(target);
+}
+
 export function getPromotionDecision(
   semester: string | number,
-  category: string
+  category: string,
+  isFemale = false
 ): { status: string; arabic: string; isRetained: boolean } | null {
   if (String(semester).trim() !== '2') return null;
   const cat = String(category || '').trim();
   if (!cat || cat === '-') {
     return { status: '-', arabic: '-', isRetained: false };
   }
-  if (cat === 'راسب') {
+  if (cat === 'راسب' || cat === 'راسبة') {
     return {
       status: 'Tidak Naik Kelas',
-      arabic: 'يبقى في نفس الصف',
+      arabic: isFemale ? 'تبقى في نفس الصف' : 'يبقى في نفس الصف',
       isRetained: true,
     };
   }
   return {
     status: 'Naik Kelas',
-    arabic: 'يرقى إلى الصف التالي',
+    arabic: isFemale ? 'ترقى إلى الصف التالي' : 'يرقى إلى الصف التالي',
     isRetained: false,
   };
 }
