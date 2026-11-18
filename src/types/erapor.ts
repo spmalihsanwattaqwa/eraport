@@ -35,6 +35,13 @@ export interface AppSettings {
   PTS_WEIGHT?: string;
   PAS_WEIGHT?: string;
   RANK_BASIS?: 'TOTAL' | 'AVERAGE' | string;
+  APPS_SCRIPT_WEBHOOK_URL?: string;
+  APPS_SCRIPT_SYNC_KEY?: string;
+  GOOGLE_SHEET_NAME?: string;
+  GOOGLE_SHEET_URL?: string;
+  GOOGLE_AUTO_SYNC?: 'YA' | 'TIDAK' | string;
+  GOOGLE_LAST_SYNC?: string;
+  GOOGLE_LAST_SYNC_ERROR?: string;
   [key: string]: string | undefined;
 }
 

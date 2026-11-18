@@ -3,6 +3,7 @@ import {
   Award,
   BarChart3,
   BookOpen,
+  Cloud,
   FileSpreadsheet,
   FileText,
   GraduationCap,
@@ -12,13 +13,14 @@ import {
   NotebookPen,
   PanelLeftClose,
   PanelLeftOpen,
+  RefreshCw,
   School,
   Settings,
   TrendingUp,
   Users,
   X,
 } from 'lucide-react';
-import { api } from './api/client.ts';
+import { api, type WebhookSyncStatus } from './api/client.ts';
 import { AcademicYearPromotionView } from './components/AcademicYearPromotionView.tsx';
 import { DashboardView } from './components/DashboardView.tsx';
 import { LoginView } from './components/LoginView.tsx';
@@ -163,6 +165,30 @@ export default function App() {
       setFatalError(err instanceof Error ? err.message : 'Gagal memuat aplikasi.');
     }
   }, [refreshBootstrap]);
+
+  const [syncStatus, setSyncStatus] = useState<WebhookSyncStatus | null>(null);
+
+  useEffect(() => {
+    if (!user || !settings?.APPS_SCRIPT_WEBHOOK_URL) {
+      setSyncStatus(null);
+      return;
+    }
+    let cancelled = false;
+    const poll = () => {
+      api
+        .getSyncStatus()
+        .then((st) => {
+          if (!cancelled) setSyncStatus(st);
+        })
+        .catch(() => undefined);
+    };
+    poll();
+    const timer = window.setInterval(poll, 10000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [user, settings?.APPS_SCRIPT_WEBHOOK_URL, settings?.GOOGLE_AUTO_SYNC]);
 
   useEffect(() => {
     initialize();
@@ -441,6 +467,44 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
+                {settings.GOOGLE_AUTO_SYNC === 'YA' && settings.APPS_SCRIPT_WEBHOOK_URL && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (user.role === 'ADMIN') {
+                        setSettingsTab('drive');
+                        setPage('settings');
+                      }
+                    }}
+                    title={
+                      syncStatus?.lastError
+                        ? `Error sync: ${syncStatus.lastError}`
+                        : syncStatus?.lastSync
+                        ? `Tersinkron ke Google Sheets (${syncStatus.lastSync})`
+                        : 'Sinkronisasi Otomatis Google Sheets Aktif'
+                    }
+                    className={`hidden md:inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                      syncStatus?.syncing
+                        ? 'border-amber-300 bg-amber-50 text-amber-900'
+                        : syncStatus?.lastError
+                        ? 'border-red-300 bg-red-50 text-red-800'
+                        : 'border-emerald-700/25 bg-emerald-50 text-emerald-950 hover:bg-emerald-100'
+                    }`}
+                  >
+                    {syncStatus?.syncing ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Cloud className="h-3 w-3" />
+                    )}
+                    <span>
+                      {syncStatus?.syncing
+                        ? 'Sync Sheets...'
+                        : syncStatus?.lastError
+                        ? 'Sync Gagal'
+                        : 'Sheets Auto-Sync'}
+                    </span>
+                  </button>
+                )}
                 {academicYears.length > 0 && (
                   <div className="flex items-center gap-1.5 rounded-lg border border-[#d9ceb5] bg-white/95 px-2.5 py-1">
                     <span className="hidden sm:inline text-[11px] font-semibold text-slate-800">
@@ -600,6 +664,7 @@ export default function App() {
               {page === 'settings' && (
                 <SettingsView
                   user={user}
+                  settings={settings}
                   activeTab={settingsTab}
                   onTabChange={setSettingsTab}
                   onRefresh={refreshBootstrap}

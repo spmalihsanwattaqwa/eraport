@@ -36,6 +36,16 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+export interface WebhookSyncStatus {
+  autoSync: boolean;
+  webhookUrl: string;
+  sheetName: string;
+  sheetUrl: string;
+  lastSync: string;
+  lastError: string;
+  syncing: boolean;
+}
+
 export const api = {
   getAppState: () => request<AppStateResponse>('/api/app-state'),
   setupERapor: (payload: Record<string, unknown>) =>
@@ -176,6 +186,39 @@ export const api = {
     request<AppSettings>('/api/settings', {
       method: 'POST',
       body: JSON.stringify(values),
+    }),
+
+  getSyncStatus: () => request<WebhookSyncStatus>('/api/sync/status'),
+  testWebhookSync: (webhookUrl: string, syncKey = '') =>
+    request<{
+      ok: boolean;
+      sheetName: string;
+      sheetUrl: string;
+      sheetCount: number;
+      settings: AppSettings;
+    }>('/api/sync/test', {
+      method: 'POST',
+      body: JSON.stringify({ webhookUrl, syncKey }),
+    }),
+  pushWebhookSync: () =>
+    request<{
+      ok: boolean;
+      sheetName: string;
+      sheetUrl: string;
+      syncedSheets: number;
+      totalRows: number;
+      lastSync: string;
+    }>('/api/sync/push', {
+      method: 'POST',
+    }),
+  pullWebhookSync: () =>
+    request<{
+      ok: boolean;
+      sheetName: string;
+      sheetUrl: string;
+      lastSync: string;
+    }>('/api/sync/pull', {
+      method: 'POST',
     }),
 
   listUsers: () => request<UserRecord[]>('/api/users'),

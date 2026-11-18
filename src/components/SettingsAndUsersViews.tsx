@@ -36,6 +36,7 @@ export type SettingsTabId = 'school' | 'grades' | 'drive';
 /* ===================== SETTINGS VIEW ===================== */
 export function SettingsView({
   user,
+  settings,
   activeTab: controlledTab,
   onTabChange,
   onRefresh,
@@ -43,10 +44,11 @@ export function SettingsView({
   onToast,
 }: {
   user: SafeUser;
+  settings?: AppSettings;
   activeTab?: SettingsTabId;
   onTabChange?: (tab: SettingsTabId) => void;
   onRefresh: () => Promise<void>;
-  onUpdateSettings: (s: AppSettings) => void;
+  onUpdateSettings: (s: AppSettings) => void | Promise<void>;
   onToast: (msg: string, type?: 'ok' | 'err') => void;
 }) {
   const isAdmin = user.role === 'ADMIN';
@@ -279,7 +281,9 @@ export function SettingsView({
         <AppsScriptSyncView
           embedded
           user={user}
+          settings={form || settings || null}
           onRefresh={onRefresh}
+          onUpdateSettings={onUpdateSettings}
           onToast={onToast}
         />
       ) : form ? (

@@ -172,6 +172,13 @@ function emptyDb(): DatabaseSchema {
       PTS_WEIGHT: '30',
       PAS_WEIGHT: '70',
       RANK_BASIS: 'TOTAL',
+      APPS_SCRIPT_WEBHOOK_URL: '',
+      APPS_SCRIPT_SYNC_KEY: '',
+      GOOGLE_SHEET_NAME: '',
+      GOOGLE_SHEET_URL: '',
+      GOOGLE_AUTO_SYNC: 'TIDAK',
+      GOOGLE_LAST_SYNC: '',
+      GOOGLE_LAST_SYNC_ERROR: '',
     },
     ACADEMIC_YEARS: [],
     USERS: [],
@@ -329,12 +336,185 @@ function loadDb(): DatabaseSchema {
   }
 }
 
-function saveDb(db: DatabaseSchema): void {
+function writeDbFileOnly(db: DatabaseSchema): void {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   const tmpFile = `${DB_FILE}.tmp`;
   fs.writeFileSync(tmpFile, JSON.stringify(db, null, 2), 'utf8');
   fs.renameSync(tmpFile, DB_FILE);
   dbCache = db;
+}
+
+function nowSyncFormatted(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function buildExportSheetsPayload(db: DatabaseSchema): Record<string, Record<string, unknown>[]> {
+  return {
+    SETTINGS: Object.entries(db.SETTINGS).map(([KEY, VALUE]) => ({ KEY, VALUE: VALUE ?? '' })),
+    ACADEMIC_YEARS: db.ACADEMIC_YEARS as unknown as Record<string, unknown>[],
+    USERS: db.USERS as unknown as Record<string, unknown>[],
+    CLASSES: db.CLASSES as unknown as Record<string, unknown>[],
+    STUDENTS: db.STUDENTS as unknown as Record<string, unknown>[],
+    ENROLLMENTS: db.ENROLLMENTS as unknown as Record<string, unknown>[],
+    SUBJECTS: db.SUBJECTS as unknown as Record<string, unknown>[],
+    SCORES: db.SCORES as unknown as Record<string, unknown>[],
+    RECAP: db.RECAP as unknown as Record<string, unknown>[],
+    EXTRACURRICULAR: db.EXTRACURRICULAR as unknown as Record<string, unknown>[],
+    TEACHER_NOTES: db.TEACHER_NOTES as unknown as Record<string, unknown>[],
+    REPORT_FILES: db.REPORT_FILES as unknown as Record<string, unknown>[],
+    AUDIT_LOGS: db.AUDIT_LOGS as unknown as Record<string, unknown>[],
+  };
+}
+
+function validateWebhookUrl(rawUrl: string): string {
+  const url = String(rawUrl || '').trim();
+  if (!url) {
+    throw new Error('URL Web App Google Apps Script wajib diisi.');
+  }
+  if (
+    !url.startsWith('https://script.google.com/') &&
+    !url.startsWith('https://script.googleusercontent.com/')
+  ) {
+    throw new Error(
+      'URL harus berupa Web App Google Apps Script yang diawali dengan https://script.google.com/...'
+    );
+  }
+  return url;
+}
+
+async function callAppsScriptWebhook(
+  rawUrl: string,
+  payload: Record<string, unknown>
+): Promise<{
+  ok: boolean;
+  spreadsheetName?: string;
+  spreadsheetUrl?: string;
+  sheetCount?: number;
+  syncedSheets?: number;
+  totalRows?: number;
+  sheets?: Record<string, Record<string, unknown>[]>;
+  error?: string;
+}> {
+  const url = validateWebhookUrl(rawUrl);
+  const res = await fetch(url, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8',
+    },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  if (text.trim().startsWith('<')) {
+    throw new Error(
+      "Google Apps Script menolak akses (mengembalikan halaman HTML). Pastikan saat Deploy Web App, pilihan 'Who has access / Yang memiliki akses' diset ke 'Anyone / Siapa saja'."
+    );
+  }
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Respons tidak valid dari Apps Script (HTTP ${res.status}).`);
+  }
+  if (!res.ok || parsed.ok === false) {
+    throw new Error(String(parsed.error || `Gagal menghubungi Apps Script (HTTP ${res.status}).`));
+  }
+  return parsed as {
+    ok: boolean;
+    spreadsheetName?: string;
+    spreadsheetUrl?: string;
+    sheetCount?: number;
+    syncedSheets?: number;
+    totalRows?: number;
+    sheets?: Record<string, Record<string, unknown>[]>;
+  };
+}
+
+let webhookSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let webhookSyncInFlight = false;
+let webhookSyncQueued = false;
+
+async function runWebhookPushInternal(): Promise<{
+  sheetName: string;
+  sheetUrl: string;
+  syncedSheets: number;
+  totalRows: number;
+  lastSync: string;
+}> {
+  const db = loadDb();
+  const webhookUrl = String(db.SETTINGS.APPS_SCRIPT_WEBHOOK_URL || '').trim();
+  const syncKey = String(db.SETTINGS.APPS_SCRIPT_SYNC_KEY || '').trim();
+  if (!webhookUrl) {
+    throw new Error('URL Web App Apps Script belum dikonfigurasi.');
+  }
+
+  webhookSyncInFlight = true;
+  try {
+    const res = await callAppsScriptWebhook(webhookUrl, {
+      action: 'push',
+      syncKey,
+      sheets: buildExportSheetsPayload(db),
+    });
+    const stamp = nowSyncFormatted();
+    const latest = loadDb();
+    latest.SETTINGS.GOOGLE_LAST_SYNC = stamp;
+    latest.SETTINGS.GOOGLE_LAST_SYNC_ERROR = '';
+    if (res.spreadsheetName) latest.SETTINGS.GOOGLE_SHEET_NAME = res.spreadsheetName;
+    if (res.spreadsheetUrl) latest.SETTINGS.GOOGLE_SHEET_URL = res.spreadsheetUrl;
+    writeDbFileOnly(latest);
+    return {
+      sheetName: latest.SETTINGS.GOOGLE_SHEET_NAME || 'Google Spreadsheet',
+      sheetUrl: latest.SETTINGS.GOOGLE_SHEET_URL || '',
+      syncedSheets: Number(res.syncedSheets ?? 13),
+      totalRows: Number(res.totalRows ?? 0),
+      lastSync: stamp,
+    };
+  } catch (err) {
+    const latest = loadDb();
+    latest.SETTINGS.GOOGLE_LAST_SYNC_ERROR =
+      err instanceof Error ? err.message : 'Gagal sinkronisasi ke Google Sheets.';
+    writeDbFileOnly(latest);
+    throw err;
+  } finally {
+    webhookSyncInFlight = false;
+    if (webhookSyncQueued) {
+      webhookSyncQueued = false;
+      scheduleWebhookAutoSync();
+    }
+  }
+}
+
+function scheduleWebhookAutoSync(): void {
+  const db = loadDb();
+  if (
+    !db.initialized ||
+    db.SETTINGS.GOOGLE_AUTO_SYNC !== 'YA' ||
+    !String(db.SETTINGS.APPS_SCRIPT_WEBHOOK_URL || '').trim()
+  ) {
+    return;
+  }
+  if (webhookSyncTimer) clearTimeout(webhookSyncTimer);
+  webhookSyncTimer = setTimeout(() => {
+    webhookSyncTimer = null;
+    if (webhookSyncInFlight) {
+      webhookSyncQueued = true;
+      return;
+    }
+    runWebhookPushInternal().catch((err) => {
+      console.error('[Webhook Auto-Sync Error]:', err instanceof Error ? err.message : err);
+    });
+  }, 1200);
+}
+
+function saveDb(db: DatabaseSchema, skipAutoSync = false): void {
+  writeDbFileOnly(db);
+  if (!skipAutoSync) {
+    scheduleWebhookAutoSync();
+  }
 }
 
 const sessions = new Map<string, { user: SafeUser; expiresAt: number }>();
@@ -2314,6 +2494,13 @@ async function startServer() {
       'PTS_WEIGHT',
       'PAS_WEIGHT',
       'RANK_BASIS',
+      'APPS_SCRIPT_WEBHOOK_URL',
+      'APPS_SCRIPT_SYNC_KEY',
+      'GOOGLE_SHEET_NAME',
+      'GOOGLE_SHEET_URL',
+      'GOOGLE_AUTO_SYNC',
+      'GOOGLE_LAST_SYNC',
+      'GOOGLE_LAST_SYNC_ERROR',
     ];
     const body = req.body || {};
     const hasPts = Object.prototype.hasOwnProperty.call(body, 'PTS_WEIGHT');
@@ -2361,6 +2548,98 @@ async function startServer() {
     logAction(db, req.user!, 'SAVE', 'SETTINGS', '', 'Pengaturan diperbarui');
     saveDb(db);
     res.json(db.SETTINGS);
+  });
+
+  app.get('/api/sync/status', requireAuth, (_req, res) => {
+    const db = loadDb();
+    res.json({
+      autoSync: db.SETTINGS.GOOGLE_AUTO_SYNC === 'YA',
+      webhookUrl: db.SETTINGS.APPS_SCRIPT_WEBHOOK_URL || '',
+      sheetName: db.SETTINGS.GOOGLE_SHEET_NAME || '',
+      sheetUrl: db.SETTINGS.GOOGLE_SHEET_URL || '',
+      lastSync: db.SETTINGS.GOOGLE_LAST_SYNC || '',
+      lastError: db.SETTINGS.GOOGLE_LAST_SYNC_ERROR || '',
+      syncing: webhookSyncInFlight,
+    });
+  });
+
+  app.post('/api/sync/test', requireAuth, async (req: AuthedRequest, res) => {
+    if (req.user!.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Hanya admin yang dapat mengatur koneksi Google Sheets.' });
+      return;
+    }
+    try {
+      const webhookUrl = validateWebhookUrl(String(req.body?.webhookUrl || ''));
+      const syncKey = String(req.body?.syncKey || '').trim();
+      const pingRes = await callAppsScriptWebhook(webhookUrl, { action: 'ping', syncKey });
+      const db = loadDb();
+      db.SETTINGS.APPS_SCRIPT_WEBHOOK_URL = webhookUrl;
+      db.SETTINGS.APPS_SCRIPT_SYNC_KEY = syncKey;
+      db.SETTINGS.GOOGLE_SHEET_NAME = pingRes.spreadsheetName || 'Google Spreadsheet';
+      db.SETTINGS.GOOGLE_SHEET_URL = pingRes.spreadsheetUrl || '';
+      db.SETTINGS.GOOGLE_LAST_SYNC_ERROR = '';
+      logAction(db, req.user!, 'CONNECT', 'GOOGLE_SHEETS', '', `Terhubung ke ${db.SETTINGS.GOOGLE_SHEET_NAME}`);
+      saveDb(db, true);
+      res.json({
+        ok: true,
+        sheetName: db.SETTINGS.GOOGLE_SHEET_NAME,
+        sheetUrl: db.SETTINGS.GOOGLE_SHEET_URL,
+        sheetCount: pingRes.sheetCount || 0,
+        settings: db.SETTINGS,
+      });
+    } catch (err) {
+      res.status(400).json({
+        error: err instanceof Error ? err.message : 'Gagal menghubungkan ke URL Apps Script.',
+      });
+    }
+  });
+
+  app.post('/api/sync/push', requireAuth, async (_req, res) => {
+    try {
+      const result = await runWebhookPushInternal();
+      res.json({ ok: true, ...result });
+    } catch (err) {
+      res.status(400).json({
+        error: err instanceof Error ? err.message : 'Gagal menyinkronkan ke Google Sheets.',
+      });
+    }
+  });
+
+  app.post('/api/sync/pull', requireAuth, async (req: AuthedRequest, res) => {
+    if (req.user!.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Hanya admin yang dapat menarik database dari Google Sheets.' });
+      return;
+    }
+    try {
+      const db = loadDb();
+      const webhookUrl = validateWebhookUrl(String(db.SETTINGS.APPS_SCRIPT_WEBHOOK_URL || ''));
+      const syncKey = String(db.SETTINGS.APPS_SCRIPT_SYNC_KEY || '').trim();
+      const pullRes = await callAppsScriptWebhook(webhookUrl, { action: 'pull', syncKey });
+      const sheets = pullRes.sheets;
+      if (!sheets || Object.keys(sheets).length === 0) {
+        res.status(400).json({ error: 'Tidak ada data sheet yang ditemukan pada Google Spreadsheet.' });
+        return;
+      }
+      applyImportedDatabasePayload(db, sheets);
+      const stamp = nowSyncFormatted();
+      db.SETTINGS.GOOGLE_LAST_SYNC = stamp;
+      db.SETTINGS.GOOGLE_LAST_SYNC_ERROR = '';
+      if (pullRes.spreadsheetName) db.SETTINGS.GOOGLE_SHEET_NAME = pullRes.spreadsheetName;
+      if (pullRes.spreadsheetUrl) db.SETTINGS.GOOGLE_SHEET_URL = pullRes.spreadsheetUrl;
+      ensureMultiYearIntegrity(db);
+      logAction(db, req.user!, 'PULL_SHEETS', 'DATABASE', '', 'Database ditarik dari Google Sheets');
+      saveDb(db, true);
+      res.json({
+        ok: true,
+        sheetName: db.SETTINGS.GOOGLE_SHEET_NAME || 'Google Spreadsheet',
+        sheetUrl: db.SETTINGS.GOOGLE_SHEET_URL || '',
+        lastSync: stamp,
+      });
+    } catch (err) {
+      res.status(400).json({
+        error: err instanceof Error ? err.message : 'Gagal menarik data dari Google Sheets.',
+      });
+    }
   });
 
   app.get('/api/users', requireAuth, (req: AuthedRequest, res) => {
@@ -2888,21 +3167,7 @@ async function startServer() {
 
   app.get('/api/database/export', requireAuth, (_req, res) => {
     const db = loadDb();
-    res.json({
-      SETTINGS: Object.entries(db.SETTINGS).map(([KEY, VALUE]) => ({ KEY, VALUE })),
-      ACADEMIC_YEARS: db.ACADEMIC_YEARS,
-      USERS: db.USERS,
-      CLASSES: db.CLASSES,
-      STUDENTS: db.STUDENTS,
-      ENROLLMENTS: db.ENROLLMENTS,
-      SUBJECTS: db.SUBJECTS,
-      SCORES: db.SCORES,
-      RECAP: db.RECAP,
-      EXTRACURRICULAR: db.EXTRACURRICULAR,
-      TEACHER_NOTES: db.TEACHER_NOTES,
-      REPORT_FILES: db.REPORT_FILES,
-      AUDIT_LOGS: db.AUDIT_LOGS,
-    });
+    res.json(buildExportSheetsPayload(db));
   });
 
   app.post('/api/database/import', requireAuth, (req: AuthedRequest, res) => {
@@ -2910,9 +3175,16 @@ async function startServer() {
       res.status(403).json({ error: 'Hanya admin yang dapat melakukan restore database.' });
       return;
     }
-    const payload = req.body || {};
+    const payload = (req.body || {}) as Record<string, unknown>;
     const db = loadDb();
+    applyImportedDatabasePayload(db, payload);
+    ensureMultiYearIntegrity(db);
+    logAction(db, req.user!, 'RESTORE_WORKBOOK', 'DATABASE', '', 'Database diimpor dari workbook');
+    saveDb(db);
+    res.json({ ok: true });
+  });
 
+  function applyImportedDatabasePayload(db: DatabaseSchema, payload: Record<string, unknown>): void {
     const sanitizeRowStrings = (row: Record<string, unknown>): Record<string, unknown> => {
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(row)) {
@@ -2927,13 +3199,14 @@ async function startServer() {
         const row = rawRow as Record<string, unknown>;
         const key = sanitizeImportedText(row.KEY);
         if (!key) continue;
+        const rawVal = sanitizeImportedText(row.VALUE);
+        if (rawVal === '[GAMBAR_TERLALU_BESAR_UNTUK_SEL]') continue;
         if (key === 'REPORT_DATE') {
-          nextSettings[key] = normalizeImportedDateDDMMYYYY(row.VALUE) || sanitizeImportedText(row.VALUE);
+          nextSettings[key] = normalizeImportedDateDDMMYYYY(row.VALUE) || rawVal;
         } else if (key === 'RANK_BASIS') {
-          nextSettings[key] =
-            sanitizeImportedText(row.VALUE).toUpperCase() === 'AVERAGE' ? 'AVERAGE' : 'TOTAL';
+          nextSettings[key] = rawVal.toUpperCase() === 'AVERAGE' ? 'AVERAGE' : 'TOTAL';
         } else {
-          nextSettings[key] = sanitizeImportedText(row.VALUE);
+          nextSettings[key] = rawVal;
         }
       }
       db.SETTINGS = nextSettings;
@@ -2967,6 +3240,7 @@ async function startServer() {
       });
     }
     if (Array.isArray(payload.STUDENTS)) {
+      const prevPhotoById = new Map(db.STUDENTS.map((s) => [s.STUDENT_ID, s.PHOTO || '']));
       db.STUDENTS = payload.STUDENTS.map((raw: Record<string, unknown>) => {
         const r = sanitizeRowStrings(raw);
         const status = normalizeImportedStatus(r.STATUS || 'AKTIF');
@@ -2982,6 +3256,11 @@ async function startServer() {
         const address =
           explicitAddress ||
           [rtRw ? `RT/RW ${rtRw}` : '', village, district, regency, province].filter(Boolean).join(', ');
+        const rawPhoto = sanitizeImportedText(r.PHOTO);
+        const resolvedPhoto =
+          rawPhoto === '[GAMBAR_TERLALU_BESAR_UNTUK_SEL]'
+            ? prevPhotoById.get(String(r.STUDENT_ID || '')) || ''
+            : rawPhoto;
         return {
           ...(r as unknown as StudentRecord),
           NIS: normalizeImportedIdentifier(r.NIS),
@@ -3009,6 +3288,7 @@ async function startServer() {
           WALI_RELATION: normalizeImportedLatinTitle(r.WALI_RELATION),
           WALI_ADDRESS: sanitizeImportedText(r.WALI_ADDRESS),
           PARENT_NAME: sanitizeImportedText(r.PARENT_NAME || r.WALI_NAME || r.FATHER_NAME || r.MOTHER_NAME),
+          PHOTO: resolvedPhoto,
           PHONE: normalizeImportedIdentifier(r.PHONE),
           UPDATED_AT: sanitizeImportedText(r.UPDATED_AT) || nowStr(),
         };
@@ -3075,12 +3355,7 @@ async function startServer() {
         ...(sanitizeRowStrings(raw) as unknown as ReportFileRecord),
       }));
     }
-
-    ensureMultiYearIntegrity(db);
-    logAction(db, req.user!, 'RESTORE_WORKBOOK', 'DATABASE', '', 'Database diimpor dari workbook');
-    saveDb(db);
-    res.json({ ok: true });
-  });
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
