@@ -11,6 +11,9 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@lokal-id/core": "^0.18.0",
