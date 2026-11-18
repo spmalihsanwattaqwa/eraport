@@ -815,11 +815,12 @@ function generateReportsBatch(token, studentIds, semester, academicYear) {
       body.setMarginTop(16).setMarginBottom(16).setMarginLeft(24).setMarginRight(24);
     } catch (e) {}
 
-    appendCenteredCompact_(body, 'كشف درجات الطالب', 11, true);
+    const isFemale = /^(P|PEREMPUAN|WANITA|FEMALE|أنثى)$/i.test(String(student.GENDER || '').trim());
+    appendCenteredCompact_(body, isFemale ? 'كشف درجات الطالبة' : 'كشف درجات الطالب', 11, true);
     body.appendHorizontalRule();
 
     const info = [
-      [String(clazz.CLASS_NAME || '-').toUpperCase(), ': الفصل ', String(student.NAME || '-').toUpperCase(), ': اسم الطالب '],
+      [String(clazz.CLASS_NAME || '-').toUpperCase(), ': الفصل ', String(student.NAME || '-').toUpperCase(), isFemale ? ': اسم الطالبة ' : ': اسم الطالب '],
       [((student.NIS || '-') + ' / ' + (student.NISN || '-')).toUpperCase(), ': NIS/NISN رقم القيد ', String(student.FATHER_NAME || '-').toUpperCase(), ': اسم الأب '],
       [semester == 1 ? 'الأول' : 'الثاني', ': الفصل الدراسي ', toArabicDigits_(String(academicYear || '').toUpperCase()), ': العام الدراسي ']
     ];
@@ -868,11 +869,12 @@ function generateReportsBatch(token, studentIds, semester, academicYear) {
     ];
     formatCompactReportTable_(body.appendTable(summaryRows), [95, 55, 125, 58, 145, 68]);
 
-    appendCompactSectionTitle_(body, 'ج. الأنشطة الإضافية');
-    const exRows = [['الوصف', 'التقدير', 'النشاط', 'الرقم']];
-    extras.forEach((x, i) => exRows.push([x.DESCRIPTION || '-', x.PREDICATE || '-', x.ACTIVITY || '-', toArabicDigits_(i + 1)]));
-    if (!extras.length) exRows.push(['-', '-', '-', '١']);
-    formatCompactReportTable_(body.appendTable(exRows), [271, 75, 165, 35]);
+    if (extras.length) {
+      appendCompactSectionTitle_(body, 'ج. الأنشطة الإضافية');
+      const exRows = [['الوصف', 'التقدير', 'النشاط', 'الرقم']];
+      extras.forEach((x, i) => exRows.push([x.DESCRIPTION || '-', x.PREDICATE || '-', x.ACTIVITY || '-', toArabicDigits_(i + 1)]));
+      formatCompactReportTable_(body.appendTable(exRows), [271, 75, 165, 35]);
+    }
 
     appendCompactSectionTitle_(body, 'د. المواظبة والشخصية وملاحظات المعلم');
     const attRows = [
@@ -978,7 +980,7 @@ function saveSettings(token, values) {
   const user = requireSession_(token);
   if (user.role !== 'ADMIN') throw new Error('Hanya admin yang dapat mengubah pengaturan.');
   const current = getSettings_();
-  const allowed = ['SCHOOL_NAME', 'SCHOOL_LEVEL', 'NPSN', 'SCHOOL_ADDRESS', 'SHEIKH_NAME', 'PRINCIPAL_NAME', 'PRINCIPAL_NIP', 'ACADEMIC_YEAR', 'ACTIVE_SEMESTER', 'CITY', 'REPORT_DATE', 'LOGO_FILE_ID', 'GRADE_CATEGORIES', 'SYAKHSIYAH_CATEGORIES', 'EXTRA_CATEGORIES', 'PTS_WEIGHT', 'PAS_WEIGHT'];
+  const allowed = ['SCHOOL_NAME', 'SCHOOL_LEVEL', 'NPSN', 'SCHOOL_ADDRESS', 'SHEIKH_NAME', 'PRINCIPAL_NAME', 'PRINCIPAL_NIP', 'ACADEMIC_YEAR', 'ACTIVE_SEMESTER', 'CITY', 'REPORT_DATE', 'LOGO_FILE_ID', 'GRADE_CATEGORIES', 'SYAKHSIYAH_CATEGORIES', 'EXTRA_CATEGORIES', 'PTS_WEIGHT', 'PAS_WEIGHT', 'RANK_BASIS'];
   values = values || {};
   const hasPts = Object.prototype.hasOwnProperty.call(values, 'PTS_WEIGHT');
   const hasPas = Object.prototype.hasOwnProperty.call(values, 'PAS_WEIGHT');
