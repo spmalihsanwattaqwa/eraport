@@ -418,9 +418,8 @@ function ArabicReportSheet({ preview }: { preview: ReportPreviewData }) {
     left: preview.subjects[i + half] || { no: '', name: '', score: '', terbilang: '' },
   }));
 
-  const reportDateArabic = toArabicDigits(
-    formatDateDDMMYYYY(preview.settings.REPORT_DATE) || preview.settings.REPORT_DATE || ''
-  );
+  const reportDateLatin =
+    formatDateDDMMYYYY(preview.settings.REPORT_DATE) || preview.settings.REPORT_DATE || '';
   const city = preview.settings.CITY || '............';
   const isFemale = isFemaleGender(preview.student.GENDER);
 
@@ -439,35 +438,52 @@ function ArabicReportSheet({ preview }: { preview: ReportPreviewData }) {
       dir="rtl"
       className="print-only-sheet mx-auto w-full max-w-[794px] bg-white p-6 text-black font-arabic border border-slate-300"
     >
-      <div className="text-center border-b-2 border-black pb-2.5 mb-3">
-        <div className="text-xl font-bold text-black">
-          {preview.settings.SCHOOL_NAME || 'المدرسة الإسلامية'}
-        </div>
-        <div className="text-base font-bold mt-0.5 text-black">
-          {isFemale ? 'كشف درجات الطالبة' : 'كشف درجات الطالب'}
-        </div>
-        <div className="text-xs text-black mt-0.5">
-          الفصل الدراسي {preview.semester === '1' ? 'الأول' : 'الثاني'} · العام الدراسي{' '}
-          {toArabicDigits(preview.academicYear)}
-        </div>
+      <div className="text-center text-base font-bold mb-2.5 text-black">
+        {isFemale ? 'كشف درجات الطالبة' : 'كشف درجات الطالب'}
       </div>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs mb-3 text-black">
         <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
           <span className="font-bold">{isFemale ? 'اسم الطالبة :' : 'اسم الطالب :'}</span>
-          <span>{preview.student.NAME}</span>
+          <span className="font-bold uppercase">
+            {String(preview.student.NAME || '').toUpperCase()}
+          </span>
         </div>
         <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
           <span className="font-bold">الفصل :</span>
-          <span>{toArabicDigits(preview.clazz.CLASS_NAME || '-')}</span>
+          <span dir="ltr" className="font-sans font-bold uppercase">
+            {String(preview.clazz.CLASS_NAME || '-').toUpperCase()}
+          </span>
         </div>
         <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
           <span className="font-bold">اسم الأب :</span>
-          <span>{preview.student.FATHER_NAME || '-'}</span>
+          <span className="font-bold uppercase">
+            {String(preview.student.FATHER_NAME || '-').toUpperCase()}
+          </span>
         </div>
         <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
-          <span className="font-bold">رقم القيد :</span>
-          <span>{toArabicDigits(`${preview.student.NIS || '-'} / ${preview.student.NISN || '-'}`)}</span>
+          <span className="font-bold inline-flex items-center gap-1">
+            <span>رقم القيد</span>
+            <span dir="ltr" className="font-sans text-[11px] font-bold uppercase">
+              NIS/NISN
+            </span>
+            <span>:</span>
+          </span>
+          <span dir="ltr" className="font-sans font-bold uppercase">
+            {`${preview.student.NIS || '-'} / ${preview.student.NISN || '-'}`.toUpperCase()}
+          </span>
+        </div>
+        <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
+          <span className="font-bold">العام الدراسي :</span>
+          <span className="font-bold uppercase">
+            {toArabicDigits(String(preview.academicYear || '').toUpperCase())}
+          </span>
+        </div>
+        <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
+          <span className="font-bold">الفصل الدراسي :</span>
+          <span className="font-bold uppercase">
+            {preview.semester === '1' ? 'الأول' : 'الثاني'}
+          </span>
         </div>
       </div>
 
@@ -644,29 +660,39 @@ function ArabicReportSheet({ preview }: { preview: ReportPreviewData }) {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4 text-center text-xs pt-2 text-black">
+      <div className="flex justify-start items-center gap-1.5 text-xs pt-2 pb-1 text-black">
+        <span dir="ltr" className="inline-block font-sans">
+          {reportDateLatin}
+        </span>
+        <span>،</span>
+        <span className="inline-block">{city}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-4 text-center text-xs text-black">
         <div>
-          <div className="h-4" />
           <div>شيخ المعهد،</div>
-          <div className="h-10" />
+          <div className="h-12 flex items-center justify-center my-0.5">
+            {preview.settings.SHEIKH_SIGNATURE ? (
+              <img
+                src={preview.settings.SHEIKH_SIGNATURE}
+                alt="Tanda tangan Pengasuh Pondok"
+                className="max-h-12 max-w-[140px] object-contain"
+              />
+            ) : null}
+          </div>
           <div className="font-bold">
             {preview.settings.SHEIKH_NAME || '....................................'}
           </div>
         </div>
         <div>
-          <div className="h-4" />
           <div>مدير المعادلة،</div>
-          <div className="h-10" />
+          <div className="h-12 my-0.5" />
           <div className="font-bold">
             {preview.settings.PRINCIPAL_NAME || '....................................'}
           </div>
         </div>
         <div>
-          <div>
-            {city}، {reportDateArabic}
-          </div>
           <div>معلم الفصل،</div>
-          <div className="h-10" />
+          <div className="h-12 my-0.5" />
           <div className="font-bold">
             {preview.clazz.HOMEROOM_TEACHER || '....................................'}
           </div>

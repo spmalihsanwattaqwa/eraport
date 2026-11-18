@@ -108,6 +108,8 @@ export function RecapView({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const recapSheetRef = useRef<HTMLDivElement | null>(null);
+
   const currentRecapClassName = recapMeta
     ? recapMeta.className
     : classId
@@ -121,6 +123,22 @@ export function RecapView({
     currentRecapYear
   );
 
+  const applyRecapPrintZoom = () => {
+    const sheet = recapSheetRef.current;
+    if (!sheet) return;
+    const table = sheet.querySelector('table');
+    if (!table) {
+      sheet.style.setProperty('--recap-print-zoom', '1');
+      return;
+    }
+    const naturalW = Math.max(table.scrollWidth, table.offsetWidth, 1);
+    const naturalH = Math.max(table.scrollHeight, table.offsetHeight, 1) + 56;
+    const scaleW = 1060 / naturalW;
+    const scaleH = 710 / naturalH;
+    const nextZoom = Math.max(0.32, Math.min(1, Number(Math.min(scaleW, scaleH).toFixed(3))));
+    sheet.style.setProperty('--recap-print-zoom', String(nextZoom));
+  };
+
   useEffect(() => {
     if (activeTab === 'class' && recap?.rows.length) {
       document.title = recapFileName;
@@ -133,6 +151,17 @@ export function RecapView({
       document.title = APP_DEFAULT_TITLE;
     };
   }, [activeTab, recap, recapFileName, transcript]);
+
+  useEffect(() => {
+    if (activeTab !== 'class' || !recap?.rows.length) return;
+    const handleBeforePrint = () => {
+      applyRecapPrintZoom();
+    };
+    window.addEventListener('beforeprint', handleBeforePrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+    };
+  }, [activeTab, recap]);
 
   const loadRecap = async () => {
     setLoading(true);
@@ -235,8 +264,6 @@ export function RecapView({
         `${transcript.student.NIS || '-'} / ${transcript.student.NISN || '-'}`,
       ],
       [
-        'Kelas Saat Ini',
-        transcript.className,
         'Rata-rata Kumulatif',
         transcript.overall.cumulativeAverage === '' ? '-' : transcript.overall.cumulativeAverage,
       ],
@@ -293,7 +320,11 @@ export function RecapView({
           </h2>
           <p className="mt-1 text-sm text-slate-800">
             {activeTab === 'class'
-              ? 'Perhitungan otomatis Total, Rata-rata, Ranking, Kategori Arab, dan Keterangan Naik/Tidak Naik (Semester 2).'
+              ? `Perhitungan otomatis Total, Rata-rata, Ranking (berdasarkan ${
+                  String(settings.RANK_BASIS || '').toUpperCase() === 'AVERAGE'
+                    ? 'Rata-rata Nilai'
+                    : 'Total Nilai'
+                }), Kategori Arab, dan Keterangan Naik/Tidak Naik (Semester 2).`
               : 'Rekam jejak nilai seluruh mata pelajaran di semua semester dan semua tahun ajaran yang diikuti siswa.'}
           </p>
         </div>
@@ -337,7 +368,10 @@ export function RecapView({
               </button>
               <button
                 type="button"
-                onClick={() => printWithDocumentTitle(recapFileName)}
+                onClick={() => {
+                  applyRecapPrintZoom();
+                  printWithDocumentTitle(recapFileName);
+                }}
                 disabled={!recap?.rows.length}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-[#064e3b] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#043b2c] disabled:opacity-50 whitespace-nowrap shrink-0"
               >
@@ -437,9 +471,31 @@ export function RecapView({
             </div>
           </div>
 
+          {activeTab === 'class' && recap && recap.rows.length > 0 && (
+            <style media="print">{`
+              @page {
+                size: A4 landscape;
+                margin: 5mm 6mm;
+              }
+              .recap-print-sheet {
+                zoom: var(--recap-print-zoom, 1);
+                width: 100% !important;
+                break-inside: avoid;
+                page-break-inside: avoid;
+              }
+              .recap-print-sheet table th,
+              .recap-print-sheet table td {
+                border: 1px solid #475569 !important;
+              }
+            `}</style>
+          )}
+
           {recap && (
-            <div className="print-only-sheet overflow-hidden rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 shadow-[0_6px_22px_rgba(6,78,59,0.06)] print:overflow-visible print:text-black">
-              <div className="hidden print:block border-b border-black pb-2 mb-3">
+            <div
+              ref={recapSheetRef}
+              className="print-only-sheet recap-print-sheet overflow-hidden rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 shadow-[0_6px_22px_rgba(6,78,59,0.06)] print:overflow-visible print:text-black"
+            >
+              <div className="hidden print:block border-b border-black pb-2 mb-2">
                 <div className="text-base font-bold text-black">
                   Rekapitulasi Nilai — {settings.SCHOOL_NAME || 'eRapor v2'}
                 </div>
@@ -454,7 +510,7 @@ export function RecapView({
                 </div>
               ) : (
                 <div className="overflow-x-auto max-h-[68vh] print:max-h-none print:overflow-visible">
-                  <table className="w-full text-left text-sm print:text-xs print:text-black">
+                  <table className="w-full text-left text-sm print:text-[11px] print:leading-tight print:text-black">
                     <thead className="sticky top-0 z-20 bg-[#064e3b] text-xs font-semibold text-amber-50 border-b border-[#d4af37]/40 print:static print:bg-slate-200 print:text-black">
                       <tr>
                         <th className="sticky left-0 z-30 bg-[#064e3b] px-3 py-3 w-12 print:static print:bg-slate-200 print:text-black">
@@ -729,8 +785,7 @@ export function RecapView({
                     {transcript.student.NAME}
                   </h3>
                   <div className="mt-1 text-xs font-medium text-slate-800 font-mono-tabular print:text-black">
-                    NIS / NISN: {transcript.student.NIS || '-'} / {transcript.student.NISN || '-'} ·
-                    Kelas Saat Ini: <span className="font-bold text-slate-950">{transcript.className}</span>
+                    NIS / NISN: {transcript.student.NIS || '-'} / {transcript.student.NISN || '-'}
                   </div>
                 </div>
 

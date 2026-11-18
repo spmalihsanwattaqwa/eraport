@@ -21,6 +21,7 @@ export interface AppSettings {
   NPSN: string;
   SCHOOL_ADDRESS: string;
   SHEIKH_NAME: string;
+  SHEIKH_SIGNATURE?: string;
   PRINCIPAL_NAME: string;
   PRINCIPAL_NIP: string;
   ACADEMIC_YEAR: string;
@@ -33,6 +34,7 @@ export interface AppSettings {
   EXTRA_CATEGORIES?: string;
   PTS_WEIGHT?: string;
   PAS_WEIGHT?: string;
+  RANK_BASIS?: 'TOTAL' | 'AVERAGE' | string;
   [key: string]: string | undefined;
 }
 
@@ -412,6 +414,21 @@ export interface PromotionPreviewResponse {
   rows: PromotionCandidateRow[];
 }
 
+export interface RegencyGenderStat {
+  regency: string;
+  male: number;
+  female: number;
+  total: number;
+}
+
+export interface ProvinceGenderStat {
+  province: string;
+  male: number;
+  female: number;
+  total: number;
+  regencies: RegencyGenderStat[];
+}
+
 export interface DashboardData {
   academicYear: string;
   semester: string;
@@ -421,6 +438,7 @@ export interface DashboardData {
   scoreCompletion: number;
   reportCompletion: number;
   recent: (ReportFileRecord & { STUDENT_NAME: string })[];
+  provinceStats?: ProvinceGenderStat[];
 }
 
 export interface AppStateResponse {

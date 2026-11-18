@@ -42,15 +42,14 @@ export function buildRecapFileName(
 export function buildTranscriptFileName(student: {
   NAME?: string;
   NISN?: string;
-  REGENCY?: string;
 }): string {
   return joinFileParts(
     [
       sanitizeFilePart(student.NAME, 'Siswa'),
       sanitizeFilePart(student.NISN),
-      sanitizeFilePart(student.REGENCY),
+      'trskp',
     ],
-    'Transkrip'
+    'Transkrip-trskp'
   );
 }
 
@@ -73,15 +72,14 @@ export function buildReportFileName(
 export function buildBiodataFileName(student: {
   NAME?: string;
   REGENCY?: string;
-  NISN?: string;
 }): string {
   return joinFileParts(
     [
       sanitizeFilePart(student.NAME, 'Siswa'),
       sanitizeFilePart(student.REGENCY),
-      sanitizeFilePart(student.NISN),
+      'bio',
     ],
-    'Biodata'
+    'Biodata-bio'
   );
 }
 

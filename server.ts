@@ -158,6 +158,7 @@ function emptyDb(): DatabaseSchema {
       NPSN: '',
       SCHOOL_ADDRESS: '',
       SHEIKH_NAME: '',
+      SHEIKH_SIGNATURE: '',
       PRINCIPAL_NAME: '',
       PRINCIPAL_NIP: '',
       ACADEMIC_YEAR: '2026/2027',
@@ -170,6 +171,7 @@ function emptyDb(): DatabaseSchema {
       EXTRA_CATEGORIES: DEFAULT_EXTRA,
       PTS_WEIGHT: '30',
       PAS_WEIGHT: '70',
+      RANK_BASIS: 'TOTAL',
     },
     ACADEMIC_YEARS: [],
     USERS: [],
@@ -610,9 +612,18 @@ function computeRecapData(
     };
   });
 
-  const ranked = rows.filter((r) => r.total !== '').sort((a, b) => Number(b.total) - Number(a.total));
+  const rankBasis =
+    String(settings.RANK_BASIS || 'TOTAL').toUpperCase() === 'AVERAGE' ? 'AVERAGE' : 'TOTAL';
+  const getRankValue = (r: (typeof rows)[number]): number =>
+    rankBasis === 'AVERAGE' ? Number(r.average) : Number(r.total);
+  const ranked = rows
+    .filter((r) => (rankBasis === 'AVERAGE' ? r.average !== '' : r.total !== ''))
+    .sort((a, b) => getRankValue(b) - getRankValue(a));
   ranked.forEach((r, idx) => {
-    r.rank = idx > 0 && r.total === ranked[idx - 1].total ? ranked[idx - 1].rank : idx + 1;
+    r.rank =
+      idx > 0 && getRankValue(r) === getRankValue(ranked[idx - 1])
+        ? ranked[idx - 1].rank
+        : idx + 1;
   });
 
   if (persist && rows.length > 0) {
@@ -1129,6 +1140,63 @@ async function startServer() {
         STUDENT_NAME: studentById.get(r.STUDENT_ID)?.NAME || r.STUDENT_ID,
       }));
 
+    const provMap = new Map<
+      string,
+      {
+        male: number;
+        female: number;
+        total: number;
+        regencies: Map<string, { male: number; female: number; total: number }>;
+      }
+    >();
+    for (const { student: st } of enrolled) {
+      const prov = String(st.PROVINCE || '').trim() || 'Belum Diisi';
+      const reg = String(st.REGENCY || '').trim() || 'Belum Diisi';
+      const female = isFemaleGender(st.GENDER);
+      let provEntry = provMap.get(prov);
+      if (!provEntry) {
+        provEntry = { male: 0, female: 0, total: 0, regencies: new Map() };
+        provMap.set(prov, provEntry);
+      }
+      if (female) provEntry.female += 1;
+      else provEntry.male += 1;
+      provEntry.total += 1;
+
+      let regEntry = provEntry.regencies.get(reg);
+      if (!regEntry) {
+        regEntry = { male: 0, female: 0, total: 0 };
+        provEntry.regencies.set(reg, regEntry);
+      }
+      if (female) regEntry.female += 1;
+      else regEntry.male += 1;
+      regEntry.total += 1;
+    }
+
+    const provinceStats = Array.from(provMap.entries())
+      .map(([province, info]) => ({
+        province,
+        male: info.male,
+        female: info.female,
+        total: info.total,
+        regencies: Array.from(info.regencies.entries())
+          .map(([regency, rInfo]) => ({
+            regency,
+            male: rInfo.male,
+            female: rInfo.female,
+            total: rInfo.total,
+          }))
+          .sort((a, b) => {
+            if (a.regency === 'Belum Diisi') return 1;
+            if (b.regency === 'Belum Diisi') return -1;
+            return b.total - a.total || a.regency.localeCompare(b.regency);
+          }),
+      }))
+      .sort((a, b) => {
+        if (a.province === 'Belum Diisi') return 1;
+        if (b.province === 'Belum Diisi') return -1;
+        return b.total - a.total || a.province.localeCompare(b.province);
+      });
+
     res.json({
       academicYear: year,
       semester: sem,
@@ -1138,6 +1206,7 @@ async function startServer() {
       scoreCompletion,
       reportCompletion,
       recent,
+      provinceStats,
     });
   });
 
@@ -2231,6 +2300,7 @@ async function startServer() {
       'NPSN',
       'SCHOOL_ADDRESS',
       'SHEIKH_NAME',
+      'SHEIKH_SIGNATURE',
       'PRINCIPAL_NAME',
       'PRINCIPAL_NIP',
       'ACADEMIC_YEAR',
@@ -2243,6 +2313,7 @@ async function startServer() {
       'EXTRA_CATEGORIES',
       'PTS_WEIGHT',
       'PAS_WEIGHT',
+      'RANK_BASIS',
     ];
     const body = req.body || {};
     const hasPts = Object.prototype.hasOwnProperty.call(body, 'PTS_WEIGHT');
@@ -2278,6 +2349,9 @@ async function startServer() {
         if (k === 'REPORT_DATE') {
           const formatted = formatDateDDMMYYYY(body[k]);
           db.SETTINGS[k] = formatted || sanitizeImportedText(body[k]);
+        } else if (k === 'RANK_BASIS') {
+          const basis = String(body[k] ?? '').trim().toUpperCase();
+          db.SETTINGS[k] = basis === 'AVERAGE' ? 'AVERAGE' : 'TOTAL';
         } else {
           db.SETTINGS[k] = String(body[k] ?? '');
         }
@@ -2855,6 +2929,9 @@ async function startServer() {
         if (!key) continue;
         if (key === 'REPORT_DATE') {
           nextSettings[key] = normalizeImportedDateDDMMYYYY(row.VALUE) || sanitizeImportedText(row.VALUE);
+        } else if (key === 'RANK_BASIS') {
+          nextSettings[key] =
+            sanitizeImportedText(row.VALUE).toUpperCase() === 'AVERAGE' ? 'AVERAGE' : 'TOTAL';
         } else {
           nextSettings[key] = sanitizeImportedText(row.VALUE);
         }

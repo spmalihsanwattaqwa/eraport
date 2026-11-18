@@ -640,9 +640,11 @@ function computeClassRecapData_(classId, semester, academicYear, saveToSheet) {
     };
   });
 
-  const validRows = rows.filter(r => r.total !== '').sort((a, b) => b.total - a.total);
+  const rankBasis = String(settings.RANK_BASIS || 'TOTAL').toUpperCase() === 'AVERAGE' ? 'AVERAGE' : 'TOTAL';
+  const getRankVal = r => (rankBasis === 'AVERAGE' ? Number(r.average) : Number(r.total));
+  const validRows = rows.filter(r => (rankBasis === 'AVERAGE' ? r.average !== '' : r.total !== '')).sort((a, b) => getRankVal(b) - getRankVal(a));
   validRows.forEach((r, idx) => {
-    r.rank = (idx > 0 && r.total === validRows[idx - 1].total) ? validRows[idx - 1].rank : idx + 1;
+    r.rank = (idx > 0 && getRankVal(r) === getRankVal(validRows[idx - 1])) ? validRows[idx - 1].rank : idx + 1;
   });
 
   if (saveToSheet && rows.length > 0) {
@@ -813,24 +815,13 @@ function generateReportsBatch(token, studentIds, semester, academicYear) {
       body.setMarginTop(16).setMarginBottom(16).setMarginLeft(24).setMarginRight(24);
     } catch (e) {}
 
-    if (logoBlob) {
-      try {
-        const imgP = body.appendParagraph('');
-        imgP.setAlignment(DocumentApp.HorizontalAlignment.CENTER).setSpacingAfter(2);
-        const img = imgP.appendInlineImage(logoBlob);
-        const ratio = img.getWidth() / Math.max(1, img.getHeight());
-        img.setHeight(36).setWidth(Math.round(36 * ratio));
-      } catch (e) {}
-    }
-
-    appendCenteredCompact_(body, String(settings.SCHOOL_NAME || 'المدرسة الإسلامية'), 13, true);
     appendCenteredCompact_(body, 'كشف درجات الطالب', 11, true);
-    appendCenteredCompact_(body, 'الفصل الدراسي ' + (semester == 1 ? 'الأول' : 'الثاني') + ' • العام الدراسي ' + toArabicDigits_(academicYear), 9, false);
     body.appendHorizontalRule();
 
     const info = [
-      [toArabicDigits_(clazz.CLASS_NAME || '-'), ': الفصل ', student.NAME || '-', ': اسم الطالب '],
-      [toArabicDigits_((student.NIS || '-') + ' / ' + (student.NISN || '-')), ': رقم القيد ', student.FATHER_NAME || '-', ': اسم الأب ']
+      [String(clazz.CLASS_NAME || '-').toUpperCase(), ': الفصل ', String(student.NAME || '-').toUpperCase(), ': اسم الطالب '],
+      [((student.NIS || '-') + ' / ' + (student.NISN || '-')).toUpperCase(), ': NIS/NISN رقم القيد ', String(student.FATHER_NAME || '-').toUpperCase(), ': اسم الأب '],
+      [semester == 1 ? 'الأول' : 'الثاني', ': الفصل الدراسي ', toArabicDigits_(String(academicYear || '').toUpperCase()), ': العام الدراسي ']
     ];
     formatCompactInfoTable_(body.appendTable(info), [145, 75, 225, 100]);
 
@@ -911,11 +902,11 @@ function generateReportsBatch(token, studentIds, semester, academicYear) {
     const principalName = settings.PRINCIPAL_NAME || '....................................';
     const homeroomTeacher = clazz.HOMEROOM_TEACHER || '....................................';
     const city = settings.CITY || '............';
-    const reportDate = toArabicDigits_(settings.REPORT_DATE || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy'));
+    const reportDate = settings.REPORT_DATE || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
 
     body.appendParagraph('').setSpacingBefore(3).setSpacingAfter(1);
     const sig = body.appendTable([
-      [city + '، ' + reportDate, '', ''],
+      ['', '', reportDate + ' ، ' + city],
       ['معلم الفصل،', 'مدير المعادلة،', 'شيخ المعهد،'],
       ['', '', ''],
       ['', '', ''],
@@ -1470,7 +1461,7 @@ function formatCompactInfoTable_(table, widths) {
       cell.setPaddingTop(1).setPaddingBottom(1).setPaddingLeft(3).setPaddingRight(3);
       const p = cell.getChild(0).asParagraph().setFontSize(8.5).setSpacingBefore(0).setSpacingAfter(0);
       p.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
-      if (c % 2 === 1) p.setBold(true);
+      p.setBold(true);
     }
   }
 }

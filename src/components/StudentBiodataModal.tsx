@@ -9,7 +9,6 @@ import {
 } from '../utils/exportFileName.ts';
 import {
   composeStudentAddress,
-  computeMasaBelajar,
   formatDateDDMMYYYY,
 } from '../utils/studentUtils.ts';
 import { Modal } from './Modal.tsx';
@@ -24,9 +23,6 @@ export function StudentBiodataSheet({
   student,
 }: StudentBiodataSheetProps) {
   const fullAddress = composeStudentAddress(student) || '-';
-  const masaBelajar =
-    computeMasaBelajar(student.KEDATANGAN, student.STATUS, student.STATUS_DATE, student.MASA_BELAJAR) ||
-    '-';
   const isFemale = isFemaleGender(student.GENDER);
   const genderLabel =
     isFemale ? 'Perempuan' : student.GENDER === 'L' ? 'Laki-laki' : student.GENDER || '-';
@@ -42,12 +38,12 @@ export function StudentBiodataSheet({
   const waliAddress = student.WALI_ADDRESS || '-';
 
   const rowClass = 'border-b border-slate-300';
-  const labelClass = 'py-1.5 pr-2 text-black font-medium w-[195px] align-top';
-  const sepClass = 'py-1.5 px-1.5 text-black w-3 align-top';
-  const valClass = 'py-1.5 text-black font-medium align-top';
+  const labelClass = 'py-1.5 pr-2 text-black font-normal text-[12px] w-[195px] align-top';
+  const sepClass = 'py-1.5 px-1.5 text-black font-normal text-[12px] w-3 align-top';
+  const valClass = 'py-1.5 text-black font-normal text-[12px] align-top';
 
   return (
-    <div className="print-only-sheet mx-auto w-full max-w-[794px] bg-white p-7 text-black border border-slate-300 text-[12px] leading-relaxed">
+    <div className="print-only-sheet mx-auto w-full max-w-[794px] bg-white p-7 text-black border border-slate-300 text-[12px] font-sans leading-relaxed">
       {/* Judul + Pas Foto */}
       <div className="flex items-start justify-between gap-5 border-b-2 border-black pb-4 mb-4">
         <div className="flex-1 pt-2">
@@ -78,7 +74,7 @@ export function StudentBiodataSheet({
 
       {/* Bagian A: Identitas Siswa */}
       <div className="mb-4">
-        <div className="bg-slate-100 border-l-4 border-black px-2.5 py-1 text-xs font-bold text-black uppercase tracking-wide mb-1.5">
+        <div className="bg-slate-100 border-l-4 border-black px-2.5 py-1 text-[12px] font-bold text-black uppercase tracking-wide mb-1.5">
           A. Identitas Peserta Didik
         </div>
         <table className="w-full border-collapse">
@@ -86,24 +82,26 @@ export function StudentBiodataSheet({
             <tr className={rowClass}>
               <td className={labelClass}>1. Nama Lengkap</td>
               <td className={sepClass}>:</td>
-              <td className={`${valClass} font-arabic text-sm font-bold`}>{student.NAME || '-'}</td>
+              <td className={`${valClass} font-bold uppercase`}>
+                {(student.NAME || '-').toUpperCase()}
+              </td>
             </tr>
             <tr className={rowClass}>
               <td className={labelClass}>2. NIS / NISN</td>
               <td className={sepClass}>:</td>
-              <td className={`${valClass} font-mono-tabular`}>
+              <td className={valClass}>
                 {student.NIS || '-'} / {student.NISN || '-'}
               </td>
             </tr>
             <tr className={rowClass}>
               <td className={labelClass}>3. NIK</td>
               <td className={sepClass}>:</td>
-              <td className={`${valClass} font-mono-tabular`}>{student.NIK || '-'}</td>
+              <td className={valClass}>{student.NIK || '-'}</td>
             </tr>
             <tr className={rowClass}>
               <td className={labelClass}>4. Nomor Kartu Keluarga</td>
               <td className={sepClass}>:</td>
-              <td className={`${valClass} font-mono-tabular`}>{student.KK_NUMBER || '-'}</td>
+              <td className={valClass}>{student.KK_NUMBER || '-'}</td>
             </tr>
             <tr className={rowClass}>
               <td className={labelClass}>5. Tempat, Tanggal Lahir</td>
@@ -123,7 +121,7 @@ export function StudentBiodataSheet({
             <tr className={rowClass}>
               <td className={labelClass}>8. Nomor Telepon / HP</td>
               <td className={sepClass}>:</td>
-              <td className={`${valClass} font-mono-tabular`}>{student.PHONE || '-'}</td>
+              <td className={valClass}>{student.PHONE || '-'}</td>
             </tr>
             <tr className={rowClass}>
               <td className={labelClass}>9. Tanggal Kedatangan</td>
@@ -132,18 +130,13 @@ export function StudentBiodataSheet({
                 {student.KEDATANGAN ? formatDateDDMMYYYY(student.KEDATANGAN) : '-'}
               </td>
             </tr>
-            <tr className={rowClass}>
-              <td className={labelClass}>10. Masa Belajar</td>
-              <td className={sepClass}>:</td>
-              <td className={valClass}>{masaBelajar}</td>
-            </tr>
           </tbody>
         </table>
       </div>
 
       {/* Bagian B: Alamat Domisili */}
       <div className="mb-4">
-        <div className="bg-slate-100 border-l-4 border-black px-2.5 py-1 text-xs font-bold text-black uppercase tracking-wide mb-1.5">
+        <div className="bg-slate-100 border-l-4 border-black px-2.5 py-1 text-[12px] font-bold text-black uppercase tracking-wide mb-1.5">
           B. Alamat Domisili Peserta Didik
         </div>
         <table className="w-full border-collapse">
@@ -156,7 +149,7 @@ export function StudentBiodataSheet({
             <tr className={rowClass}>
               <td className={labelClass}>2. RT / RW</td>
               <td className={sepClass}>:</td>
-              <td className={`${valClass} font-mono-tabular`}>{student.RT_RW || '-'}</td>
+              <td className={valClass}>{student.RT_RW || '-'}</td>
             </tr>
             <tr className={rowClass}>
               <td className={labelClass}>3. Desa / Kelurahan</td>
@@ -184,7 +177,7 @@ export function StudentBiodataSheet({
 
       {/* Bagian C: Identitas Orang Tua & Wali */}
       <div className="mb-6">
-        <div className="bg-slate-100 border-l-4 border-black px-2.5 py-1 text-xs font-bold text-black uppercase tracking-wide mb-1.5">
+        <div className="bg-slate-100 border-l-4 border-black px-2.5 py-1 text-[12px] font-bold text-black uppercase tracking-wide mb-1.5">
           C. Identitas Orang Tua &amp; Wali
         </div>
         <table className="w-full border-collapse">
@@ -192,17 +185,17 @@ export function StudentBiodataSheet({
             <tr className={rowClass}>
               <td className={labelClass}>1. Nama Ayah</td>
               <td className={sepClass}>:</td>
-              <td className={`${valClass} font-arabic text-sm`}>{student.FATHER_NAME || '-'}</td>
+              <td className={valClass}>{student.FATHER_NAME || '-'}</td>
             </tr>
             <tr className={rowClass}>
               <td className={labelClass}>2. Nama Ibu</td>
               <td className={sepClass}>:</td>
-              <td className={`${valClass} font-arabic text-sm`}>{student.MOTHER_NAME || '-'}</td>
+              <td className={valClass}>{student.MOTHER_NAME || '-'}</td>
             </tr>
             <tr className={rowClass}>
               <td className={labelClass}>3. Nama Wali</td>
               <td className={sepClass}>:</td>
-              <td className={`${valClass} font-arabic text-sm`}>{waliName}</td>
+              <td className={valClass}>{waliName}</td>
             </tr>
             <tr className={rowClass}>
               <td className={labelClass}>4. Hubungan Keluarga</td>

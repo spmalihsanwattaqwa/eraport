@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart3, Cloud, Pencil, Plus, RotateCcw, Save, School, Trash2 } from 'lucide-react';
+import { BarChart3, Cloud, Pencil, Plus, RotateCcw, Save, School, Trash2, Upload } from 'lucide-react';
 import { api } from '../api/client.ts';
 import {
   SCHOOL_LEVELS,
@@ -15,7 +15,7 @@ import {
   DEFAULT_SYAKHSIYAH_CATEGORIES,
   parsePredicateCategories,
 } from '../utils/arabic.ts';
-import { formatDateDDMMYYYY } from '../utils/studentUtils.ts';
+import { compressSignatureToDataUrl, formatDateDDMMYYYY } from '../utils/studentUtils.ts';
 import { AppsScriptSyncView } from './AppsScriptSyncView.tsx';
 import { DateInputDDMMYYYY } from './DateInputDDMMYYYY.tsx';
 import { ConfirmDialog, Modal } from './Modal.tsx';
@@ -64,6 +64,7 @@ export function SettingsView({
   const [syakhsiyahCats, setSyakhsiyahCats] = useState<PredicateCategory[]>([]);
   const [extraCats, setExtraCats] = useState<PredicateCategory[]>([]);
   const [busy, setBusy] = useState(false);
+  const [sigBusy, setSigBusy] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -78,6 +79,7 @@ export function SettingsView({
             s.PTS_WEIGHT !== undefined && String(s.PTS_WEIGHT).trim() !== '' ? s.PTS_WEIGHT : '30',
           PAS_WEIGHT:
             s.PAS_WEIGHT !== undefined && String(s.PAS_WEIGHT).trim() !== '' ? s.PAS_WEIGHT : '70',
+          RANK_BASIS: String(s.RANK_BASIS || '').toUpperCase() === 'AVERAGE' ? 'AVERAGE' : 'TOTAL',
         });
         try {
           const parsed = JSON.parse(s.GRADE_CATEGORIES || '[]');
@@ -131,6 +133,7 @@ export function SettingsView({
         ...form,
         PTS_WEIGHT: String(Math.round(ptsNum * 100) / 100),
         PAS_WEIGHT: String(Math.round(pasNum * 100) / 100),
+        RANK_BASIS: String(form.RANK_BASIS || '').toUpperCase() === 'AVERAGE' ? 'AVERAGE' : 'TOTAL',
         GRADE_CATEGORIES: JSON.stringify(categories.filter((c) => c.name.trim())),
         SYAKHSIYAH_CATEGORIES: JSON.stringify(
           cleanedSyakhsiyah.length ? cleanedSyakhsiyah : DEFAULT_SYAKHSIYAH_CATEGORIES
@@ -143,6 +146,7 @@ export function SettingsView({
       setForm({
         ...updated,
         REPORT_DATE: formatDateDDMMYYYY(updated.REPORT_DATE) || updated.REPORT_DATE || '',
+        RANK_BASIS: String(updated.RANK_BASIS || '').toUpperCase() === 'AVERAGE' ? 'AVERAGE' : 'TOTAL',
       });
       setSyakhsiyahCats(
         parsePredicateCategories(updated.SYAKHSIYAH_CATEGORIES, DEFAULT_SYAKHSIYAH_CATEGORIES)
@@ -174,6 +178,21 @@ export function SettingsView({
       setForm({ ...form, PTS_WEIGHT: String(clamped), PAS_WEIGHT: String(other) });
     } else {
       setForm({ ...form, PAS_WEIGHT: String(clamped), PTS_WEIGHT: String(other) });
+    }
+  };
+
+  const handleSheikhSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setSigBusy(true);
+    try {
+      const dataUrl = await compressSignatureToDataUrl(file);
+      setForm((prev) => (prev ? { ...prev, SHEIKH_SIGNATURE: dataUrl } : prev));
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Gagal memproses tanda tangan.', 'err');
+    } finally {
+      setSigBusy(false);
     }
   };
 
@@ -321,7 +340,7 @@ export function SettingsView({
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-900 mb-1.5">
                 Nama Pengasuh Pondok / شيخ المعهد (Ditampilkan di Rapor)
               </label>
               <input
@@ -331,6 +350,59 @@ export function SettingsView({
                 value={form.SHEIKH_NAME || ''}
                 onChange={(e) => setForm({ ...form, SHEIKH_NAME: e.target.value })}
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-900 mb-1.5">
+                Tanda Tangan Pengasuh Pondok (Ditampilkan di Rapor)
+              </label>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border border-[#d9ceb5] bg-white/80 p-3.5">
+                <div className="h-20 w-52 shrink-0 rounded-lg border border-dashed border-[#c9bba0] bg-white flex items-center justify-center p-2 overflow-hidden">
+                  {form.SHEIKH_SIGNATURE ? (
+                    <img
+                      src={form.SHEIKH_SIGNATURE}
+                      alt="Tanda tangan pengasuh pondok"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xs font-medium text-slate-600">
+                      Belum ada tanda tangan
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#064e3b] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#043b2c]">
+                      <Upload className="h-3.5 w-3.5 text-[#f3d16c]" />
+                      {sigBusy
+                        ? 'Memproses...'
+                        : form.SHEIKH_SIGNATURE
+                          ? 'Ganti Tanda Tangan'
+                          : 'Upload Tanda Tangan'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={sigBusy}
+                        onChange={handleSheikhSignatureUpload}
+                        className="sr-only"
+                      />
+                    </label>
+                    {form.SHEIKH_SIGNATURE && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, SHEIKH_SIGNATURE: '' })}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Hapus
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-800">
+                    Unggah scan/gambar tanda tangan Pengasuh Pondok (format PNG transparan atau
+                    JPG/WEBP). Jangan lupa klik Simpan Pengaturan Sekolah.
+                  </p>
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -452,7 +524,7 @@ export function SettingsView({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-900 mb-1.5">
                 Prosentase Nilai PAS (%)
               </label>
               <input
@@ -466,6 +538,67 @@ export function SettingsView({
                 className={`${INPUT_CLASS} font-mono-tabular font-semibold`}
               />
             </div>
+          </div>
+        </section>
+
+        {/* Section 2B: Cara Pembuatan Ranking Kelas */}
+        <section className="border-t border-[#e6dcc6] pt-7 space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-[#042f24]">Cara Pembuatan Ranking Kelas</h3>
+            <p className="text-xs text-slate-800">
+              Pilih dasar perhitungan peringkat siswa di menu Rekapitulasi Nilai dan Rapor.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all ${
+                (form.RANK_BASIS || 'TOTAL') === 'AVERAGE'
+                  ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/15'
+                  : 'border-[#d9ceb5] bg-white hover:bg-amber-50/40'
+              }`}
+            >
+              <input
+                type="radio"
+                name="rankBasis"
+                value="AVERAGE"
+                checked={(form.RANK_BASIS || 'TOTAL') === 'AVERAGE'}
+                onChange={() => setForm({ ...form, RANK_BASIS: 'AVERAGE' })}
+                className="mt-1 h-4 w-4 accent-[#064e3b]"
+              />
+              <div>
+                <div className="text-sm font-bold text-slate-950">
+                  Berdasarkan Rata-rata Nilai
+                </div>
+                <div className="mt-0.5 text-xs text-slate-800">
+                  Peringkat kelas diurutkan dari nilai rata-rata mata pelajaran tertinggi ke terendah.
+                </div>
+              </div>
+            </label>
+
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all ${
+                (form.RANK_BASIS || 'TOTAL') !== 'AVERAGE'
+                  ? 'border-emerald-700 bg-emerald-50/70 ring-2 ring-emerald-700/15'
+                  : 'border-[#d9ceb5] bg-white hover:bg-amber-50/40'
+              }`}
+            >
+              <input
+                type="radio"
+                name="rankBasis"
+                value="TOTAL"
+                checked={(form.RANK_BASIS || 'TOTAL') !== 'AVERAGE'}
+                onChange={() => setForm({ ...form, RANK_BASIS: 'TOTAL' })}
+                className="mt-1 h-4 w-4 accent-[#064e3b]"
+              />
+              <div>
+                <div className="text-sm font-bold text-slate-950">
+                  Berdasarkan Total Nilai
+                </div>
+                <div className="mt-0.5 text-xs text-slate-800">
+                  Peringkat kelas diurutkan dari jumlah total nilai seluruh mata pelajaran tertinggi ke terendah.
+                </div>
+              </div>
+            </label>
           </div>
         </section>
 

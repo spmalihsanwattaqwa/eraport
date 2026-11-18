@@ -532,3 +532,43 @@ export async function compressImageToDataUrl(
   return canvas.toDataURL('image/jpeg', quality);
 }
 
+export async function compressSignatureToDataUrl(
+  file: File,
+  maxWidth = 480,
+  maxHeight = 200
+): Promise<string> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('File tanda tangan harus berupa gambar (PNG, JPG, atau WEBP).');
+  }
+
+  const rawDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Gagal membaca file tanda tangan.'));
+    reader.readAsDataURL(file);
+  });
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Format gambar tanda tangan tidak valid atau rusak.'));
+    image.src = rawDataUrl;
+  });
+
+  const ratio = Math.min(1, maxWidth / img.width, maxHeight / img.height);
+  const targetW = Math.max(1, Math.round(img.width * ratio));
+  const targetH = Math.max(1, Math.round(img.height * ratio));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return rawDataUrl;
+
+  ctx.clearRect(0, 0, targetW, targetH);
+  ctx.drawImage(img, 0, 0, targetW, targetH);
+
+  return canvas.toDataURL('image/png');
+}
+
+

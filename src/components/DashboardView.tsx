@@ -1,7 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, CheckCircle2, FileText, GraduationCap, Plus, School } from 'lucide-react';
+import {
+  ArrowLeft,
+  BookOpen,
+  CheckCircle2,
+  ChevronRight,
+  FileText,
+  GraduationCap,
+  MapPin,
+  Plus,
+  School,
+} from 'lucide-react';
 import { api } from '../api/client.ts';
-import type { AppSettings, DashboardData, SafeUser } from '../types/erapor.ts';
+import type {
+  AppSettings,
+  DashboardData,
+  ProvinceGenderStat,
+  SafeUser,
+} from '../types/erapor.ts';
 import { formatDateTimeDDMMYYYY } from '../utils/studentUtils.ts';
 
 interface DashboardViewProps {
@@ -21,12 +36,14 @@ export function DashboardView({
 }: DashboardViewProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedProvinceName, setSelectedProvinceName] = useState<string | null>(null);
   const displayYear = selectedYear || settings.ACADEMIC_YEAR;
   const isArchive = displayYear !== settings.ACADEMIC_YEAR;
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setSelectedProvinceName(null);
     api
       .getDashboard(displayYear, settings.ACTIVE_SEMESTER)
       .then((res) => {
@@ -42,6 +59,13 @@ export function DashboardView({
       active = false;
     };
   }, [displayYear, settings.ACTIVE_SEMESTER, onToast]);
+
+  const provinceStats: ProvinceGenderStat[] = data?.provinceStats || [];
+  const activeProvince: ProvinceGenderStat | null = selectedProvinceName
+    ? provinceStats.find((p) => p.province === selectedProvinceName) || null
+    : null;
+  const totalMale = provinceStats.reduce((sum, p) => sum + p.male, 0);
+  const totalFemale = provinceStats.reduce((sum, p) => sum + p.female, 0);
 
   const canGenerateReport = user.role !== 'GURU';
 
@@ -219,6 +243,173 @@ export function DashboardView({
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Sebaran Siswa per Provinsi & Kabupaten (Laki-laki & Perempuan) */}
+          <div className="rounded-xl border border-[#e6dcc6] bg-[#fdfaf3]/95 backdrop-blur-md shadow-[0_8px_24px_rgba(6,78,59,0.07)] overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e6dcc6] px-5 py-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-900/10 text-emerald-950">
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#042f24]">
+                    {activeProvince
+                      ? `Sebaran Siswa — Provinsi ${activeProvince.province} (per Kabupaten/Kota)`
+                      : 'Sebaran Siswa Berdasarkan Provinsi (Laki-laki & Perempuan)'}
+                  </h3>
+                  <p className="text-xs text-slate-800">
+                    {activeProvince
+                      ? 'Menampilkan rincian jumlah siswa laki-laki dan perempuan per kabupaten/kota di provinsi terpilih.'
+                      : 'Klik nama provinsi untuk menampilkan rincian data berdasarkan kabupaten/kota.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                <span className="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-sky-950 font-mono-tabular">
+                  Laki-laki: {activeProvince ? activeProvince.male : totalMale}
+                </span>
+                <span className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-rose-950 font-mono-tabular">
+                  Perempuan: {activeProvince ? activeProvince.female : totalFemale}
+                </span>
+                <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-950 font-mono-tabular">
+                  Total: {activeProvince ? activeProvince.total : data.studentCount}
+                </span>
+                {activeProvince && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProvinceName(null)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#d9ceb5] bg-white px-2.5 py-1 text-xs font-bold text-slate-900 hover:bg-amber-50/70"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    Semua Provinsi
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {!provinceStats.length ? (
+              <div className="py-10 text-center text-sm font-medium text-slate-800">
+                Belum ada data siswa aktif untuk ditampilkan.
+              </div>
+            ) : (
+              <div
+                className={
+                  activeProvince
+                    ? 'grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#e6dcc6]'
+                    : ''
+                }
+              >
+                {/* Tabel Provinsi */}
+                <div className="overflow-x-auto max-h-[360px]">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 z-10 bg-[#064e3b] text-xs font-semibold text-amber-50 border-b border-[#d4af37]/40">
+                      <tr>
+                        <th className="px-4 py-2.5 w-12">No.</th>
+                        <th className="px-4 py-2.5">Provinsi</th>
+                        <th className="px-4 py-2.5 text-center w-24">Laki-laki</th>
+                        <th className="px-4 py-2.5 text-center w-24">Perempuan</th>
+                        <th className="px-4 py-2.5 text-center w-20">Total</th>
+                        <th className="px-3 py-2.5 w-10" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#eee5d3]">
+                      {provinceStats.map((prov, idx) => {
+                        const isSelected = activeProvince?.province === prov.province;
+                        return (
+                          <tr
+                            key={prov.province}
+                            onClick={() =>
+                              setSelectedProvinceName((prev) =>
+                                prev === prov.province ? null : prov.province
+                              )
+                            }
+                            className={`cursor-pointer transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-50 font-semibold'
+                                : 'hover:bg-amber-50/60'
+                            }`}
+                          >
+                            <td className="px-4 py-2.5 font-mono-tabular font-semibold text-slate-800">
+                              {idx + 1}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span
+                                className={`font-semibold ${
+                                  isSelected ? 'text-emerald-950' : 'text-slate-950'
+                                }`}
+                              >
+                                {prov.province}
+                              </span>
+                              <span className="ml-2 text-[11px] font-medium text-slate-700">
+                                ({prov.regencies.length} kab/kota)
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-center font-mono-tabular font-bold text-slate-950">
+                              {prov.male}
+                            </td>
+                            <td className="px-4 py-2.5 text-center font-mono-tabular font-bold text-slate-950">
+                              {prov.female}
+                            </td>
+                            <td className="px-4 py-2.5 text-center font-mono-tabular font-bold text-emerald-950">
+                              {prov.total}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-slate-700">
+                              <ChevronRight
+                                className={`h-4 w-4 inline transition-transform ${
+                                  isSelected ? 'text-emerald-900 translate-x-0.5' : ''
+                                }`}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Tabel Kabupaten/Kota dari Provinsi yang diklik */}
+                {activeProvince && (
+                  <div className="overflow-x-auto max-h-[360px] bg-white/75">
+                    <table className="w-full text-left text-sm">
+                      <thead className="sticky top-0 z-10 bg-[#053f30] text-xs font-semibold text-amber-50 border-b border-[#d4af37]/40">
+                        <tr>
+                          <th className="px-4 py-2.5 w-12">No.</th>
+                          <th className="px-4 py-2.5">
+                            Kabupaten / Kota ({activeProvince.province})
+                          </th>
+                          <th className="px-4 py-2.5 text-center w-24">Laki-laki</th>
+                          <th className="px-4 py-2.5 text-center w-24">Perempuan</th>
+                          <th className="px-4 py-2.5 text-center w-20">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#eee5d3]">
+                        {activeProvince.regencies.map((reg, rIdx) => (
+                          <tr key={reg.regency} className="hover:bg-amber-50/45">
+                            <td className="px-4 py-2.5 font-mono-tabular font-semibold text-slate-800">
+                              {rIdx + 1}
+                            </td>
+                            <td className="px-4 py-2.5 font-semibold text-slate-950">
+                              {reg.regency}
+                            </td>
+                            <td className="px-4 py-2.5 text-center font-mono-tabular font-bold text-slate-950">
+                              {reg.male}
+                            </td>
+                            <td className="px-4 py-2.5 text-center font-mono-tabular font-bold text-slate-950">
+                              {reg.female}
+                            </td>
+                            <td className="px-4 py-2.5 text-center font-mono-tabular font-bold text-emerald-950">
+                              {reg.total}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </>
       ) : null}

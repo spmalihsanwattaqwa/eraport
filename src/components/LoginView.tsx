@@ -42,7 +42,7 @@ export function LoginView({ appState, onSuccess, onToast }: LoginViewProps) {
             <BookOpen className="h-5 w-5" />
           </div>
           <span className="text-sm font-semibold tracking-tight text-[#f3d16c]">
-            Sistem Informasi Penilaian Pesantren
+            Sistem Informasi Penilaian 
           </span>
         </div>
 
